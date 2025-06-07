@@ -1,0 +1,8 @@
+Super administrateur créé avec succès :
+{
+  id: new ObjectId("6842a6047575183f1fc66f42"),
+  firstName: 'Super',
+  lastName: 'Admin',
+  email: 'superadmin@myadminhome.com',
+  role: 'super_admin'
+}
