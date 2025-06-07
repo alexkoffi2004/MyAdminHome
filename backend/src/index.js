@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Middleware
-app.use(cors());
+// app.use(cors()); // Supprimé car géré dans server.js
 app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 

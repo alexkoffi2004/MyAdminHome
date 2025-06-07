@@ -35,7 +35,7 @@ const limiter = rateLimit({
 app.use('/api', limiter);
 
 // Middleware
-app.use(cors());
+// app.use(cors()); // Supprimé car géré dans server.js
 app.use(morgan('dev'));
 
 // Configuration spéciale pour les webhooks Stripe
