@@ -98,9 +98,13 @@ export const processRequest = async (id: string): Promise<RequestDetails> => {
       throw new Error('Non authentifié');
     }
 
-    const response = await api.put(`/requests/${id}/process`, null, {
+    const response = await api.put(`/requests/${id}/process`, {
+      status: 'processing',
+      processedAt: new Date().toISOString()
+    }, {
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
     });
     return response.data.data;
@@ -122,9 +126,17 @@ export const initializePayment = async (id: string): Promise<{ clientSecret: str
       throw new Error('Non authentifié');
     }
 
-    const response = await api.post(`/requests/${id}/payment`, null, {
+    // D'abord récupérer les détails de la demande pour obtenir le montant
+    const requestDetails = await getRequestDetails(id);
+    
+    const response = await api.post(`/requests/${id}/payment`, {
+      requestId: id,
+      amount: requestDetails.price,
+      currency: 'xof'
+    }, {
       headers: {
-        Authorization: `Bearer ${token}`
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
       }
     });
     return response.data;
