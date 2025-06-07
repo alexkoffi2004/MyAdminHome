@@ -6,10 +6,10 @@ const connectDB = require('./config/db');
 const { errorHandler } = require('./utils/errorHandler');
 const { initializeSocket } = require('./config/socket');
 
-// Load env vars
+// Chargement des variables d'environnement
 dotenv.config();
 
-// Connect to database
+// Connexion à la base de données
 console.log('Tentative de connexion à MongoDB...');
 console.log('URI:', process.env.MONGODB_URI);
 
@@ -17,18 +17,18 @@ connectDB();
 
 const app = express();
 
-// Body parser
+// Middleware pour parser le corps des requêtes
 app.use(express.json());
 
-// Enable CORS with specific options
+// Configuration de CORS avec des options spécifiques
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL || 'https://myfirstadminhome.netlify.app/',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Logging middleware
+// Middleware pour la journalisation
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
   next();
@@ -37,23 +37,23 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api', require('./routes'));
 
-// Middleware de gestion des erreurs
+// Middleware pour la gestion des erreurs
 app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 
-// Start server
+// Démarrer le serveur
 const server = app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`API URL: http://localhost:${PORT}`);
 
-  // Initialiser Socket.IO
+  // Initialiser Socket.IO pour la communication en temps réel
   initializeSocket(server);
 });
 
-// Handle unhandled promise rejections
+// Gestion des rejets de promesses non gérés
 process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Promise Rejection:', err);
-  // Close server & exit process
+  console.error('Rejet de promesse non géré:', err);
+  // Fermer le serveur et quitter le processus
   server.close(() => process.exit(1));
 }); 
