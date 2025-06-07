@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { FileText, Search, Filter, ArrowRight } from 'lucide-react';
 import { Card } from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
@@ -9,6 +9,7 @@ import RequestStatusBadge, { RequestStatus } from '../../components/UI/RequestSt
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { getRequests, Request } from '../../services/requestService';
+import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
 
 // Filter options
@@ -47,12 +48,22 @@ const mapApiStatusToBadgeStatus = (status: string): RequestStatus => {
 };
 
 const RequestTracking = () => {
+  const { user, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
   const [requests, setRequests] = useState<Request[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== 'citizen') {
+      navigate('/citizen/login');
+      return;
+    }
+    fetchRequests();
+  }, [isAuthenticated, user, navigate]);
 
   const fetchRequests = async () => {
     try {
@@ -67,18 +78,6 @@ const RequestTracking = () => {
     }
   };
 
-  // Charger les demandes au montage du composant
-  useEffect(() => {
-    fetchRequests();
-
-    // Rafraîchir les données toutes les 30 secondes
-    const interval = setInterval(fetchRequests, 30000);
-
-    return () => {
-      clearInterval(interval);
-    };
-  }, []);
-  
   // Filter requests based on search term and filters
   const filteredRequests = requests.filter(request => {
     const matchesSearch = request._id.toLowerCase().includes(searchTerm.toLowerCase()) ||

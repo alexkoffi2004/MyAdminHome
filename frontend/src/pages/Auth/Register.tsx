@@ -13,6 +13,7 @@ interface RegisterFormData {
   email: string;
   phone: string;
   commune: string;
+  address: string;
   password: string;
   confirmPassword: string;
 }
@@ -56,6 +57,7 @@ const Register = () => {
         email: data.email,
         phone: data.phone,
         commune: data.commune,
+        address: data.address,
         role: 'citizen',
         password: data.password
       });
@@ -174,6 +176,22 @@ const Register = () => {
                     options={communes}
                     {...register('commune', {
                       required: 'La commune est requise'
+                    })}
+                  />
+                  
+                  <Input
+                    id="address"
+                    type="text"
+                    label="Adresse"
+                    placeholder="Votre adresse complète"
+                    icon={<MapPin size={18} />}
+                    error={errors.address?.message}
+                    {...register('address', {
+                      required: 'L\'adresse est requise',
+                      minLength: {
+                        value: 5,
+                        message: 'L\'adresse doit contenir au moins 5 caractères'
+                      }
                     })}
                   />
                   

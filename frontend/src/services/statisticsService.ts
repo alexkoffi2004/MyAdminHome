@@ -56,23 +56,43 @@ export interface AgentPendingRequestsResponse {
 
 const statisticsService = {
   getCitizenStats: async (): Promise<CitizenStats> => {
-    const response = await api.get('/citizen/statistics');
-    return response.data.data;
+    try {
+      const response = await api.get('/citizen/statistics');
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching citizen stats:', error);
+      throw error;
+    }
   },
 
   getCitizenRecentPayments: async (): Promise<Payment[]> => {
-    const response = await api.get('/citizen/statistics/payments');
-    return response.data.data;
+    try {
+      const response = await api.get('/citizen/statistics/payments');
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching recent payments:', error);
+      throw error;
+    }
   },
 
   getAgentStats: async (): Promise<AgentStats> => {
-    const response = await api.get('/agent/statistics');
-    return response.data.data;
+    try {
+      const response = await api.get('/agent/statistics');
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching agent stats:', error);
+      throw error;
+    }
   },
 
   getAgentPendingRequests: async (): Promise<{ requests: PendingRequest[]; alerts: AgentAlerts }> => {
-    const response = await api.get('/agent/statistics/pending-requests');
-    return response.data.data;
+    try {
+      const response = await api.get('/agent/statistics/pending-requests');
+      return response.data.data;
+    } catch (error) {
+      console.error('Error fetching pending requests:', error);
+      throw error;
+    }
   }
 };
 

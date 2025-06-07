@@ -1,4 +1,4 @@
-import api from '../config/axiosConfig';
+import api from '../config/api';
 
 export interface Request {
   _id: string;
@@ -44,34 +44,124 @@ export interface RequestDetails {
 }
 
 export const getRequests = async (): Promise<Request[]> => {
-  const response = await api.get('/requests');
-  return response.data.data;
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Non authentifié');
+    }
+
+    const response = await api.get('/requests', {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    return response.data.data;
+  } catch (error: any) {
+    console.error('Error fetching requests:', error.response?.data || error.message);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/citizen/login';
+    }
+    throw error;
+  }
 };
 
 export const getRequestDetails = async (id: string): Promise<RequestDetails> => {
-  const response = await api.get(`/requests/${id}`);
-  return response.data;
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Non authentifié');
+    }
+
+    const response = await api.get(`/requests/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error fetching request details:', error.response?.data || error.message);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/citizen/login';
+    }
+    throw error;
+  }
 };
 
 export const processRequest = async (id: string): Promise<RequestDetails> => {
-  const response = await api.put(`/requests/${id}/process`);
-  return response.data.data;
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Non authentifié');
+    }
+
+    const response = await api.put(`/requests/${id}/process`, null, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    return response.data.data;
+  } catch (error: any) {
+    console.error('Error processing request:', error.response?.data || error.message);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/citizen/login';
+    }
+    throw error;
+  }
 };
 
 export const initializePayment = async (id: string): Promise<{ clientSecret: string }> => {
-  const response = await api.post(`/requests/${id}/payment`);
-  return response.data;
+  try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Non authentifié');
+    }
+
+    const response = await api.post(`/requests/${id}/payment`, null, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('Error initializing payment:', error.response?.data || error.message);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/citizen/login';
+    }
+    throw error;
+  }
 };
 
 export const updatePaymentStatus = async (requestId: string, paymentIntent: string, status: 'succeeded' | 'failed') => {
   try {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      throw new Error('Non authentifié');
+    }
+
     const response = await api.post(`/requests/${requestId}/payment-status`, {
       paymentIntent,
       status
+    }, {
+      headers: {
+        Authorization: `Bearer ${token}`
+      }
     });
     return response.data;
-  } catch (error) {
-    console.error('Error updating payment status:', error);
+  } catch (error: any) {
+    console.error('Error updating payment status:', error.response?.data || error.message);
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/citizen/login';
+    }
     throw error;
   }
 }; 

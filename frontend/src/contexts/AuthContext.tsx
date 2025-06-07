@@ -17,6 +17,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   user: User | null;
   login: (credentials: LoginCredentials) => Promise<void>;
+  register: (userData: any) => Promise<void>;
   logout: () => void;
 }
 
@@ -47,6 +48,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const register = async (userData: any) => {
+    try {
+      const response = await authService.register(userData);
+      setIsAuthenticated(true);
+      setUser(response.user);
+      localStorage.setItem('user', JSON.stringify(response.user));
+    } catch (error) {
+      console.error('Registration failed:', error);
+      throw error;
+    }
+  };
+
   const logout = () => {
     authService.logout();
     setIsAuthenticated(false);
@@ -54,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, user, login, logout }}>
+    <AuthContext.Provider value={{ isAuthenticated, user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

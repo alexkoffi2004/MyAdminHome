@@ -1,8 +1,8 @@
-import axiosInstance from './axiosConfig';
+import api from '../config/api';
 import { User } from '../contexts/AuthContext';
 
 // Configuration d'axios pour inclure le token dans toutes les requêtes
-axiosInstance.interceptors.request.use((config) => {
+api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -11,7 +11,7 @@ axiosInstance.interceptors.request.use((config) => {
 });
 
 // Gérer les erreurs 401
-axiosInstance.interceptors.response.use(
+api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
@@ -28,6 +28,17 @@ export interface LoginCredentials {
   role: 'citizen' | 'agent' | 'admin';
 }
 
+export interface RegisterData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  password: string;
+  phone: string;
+  commune: string;
+  address: string;
+  role: 'citizen';
+}
+
 export interface AuthResponse {
   token: string;
   user: User;
@@ -35,26 +46,36 @@ export interface AuthResponse {
 
 const authService = {
   login: async (credentials: LoginCredentials): Promise<AuthResponse> => {
-    const response = await axiosInstance.post('/auth/login', credentials);
-    const { token, user } = response.data;
-    
-    // Stocker le token et l'utilisateur
-    localStorage.setItem('token', token);
-    localStorage.setItem('user', JSON.stringify(user));
-    
-    return { token, user };
+    try {
+      const response = await api.post('/auth/login', credentials);
+      const { token, user } = response.data;
+      
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      return { token, user };
+    } catch (error: any) {
+      console.error('Login error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Erreur lors de la connexion');
+    }
   },
 
-  register: async (userData: any) => {
-    const response = await axiosInstance.post('/auth/register', userData);
-    if (response.data.token) {
-      localStorage.setItem('token', response.data.token);
+  register: async (userData: RegisterData): Promise<AuthResponse> => {
+    try {
+      const response = await api.post('/auth/register', userData);
+      const { token, user } = response.data;
+      
+      localStorage.setItem('token', token);
+      localStorage.setItem('user', JSON.stringify(user));
+      
+      return { token, user };
+    } catch (error: any) {
+      console.error('Registration error:', error.response?.data || error.message);
+      throw new Error(error.response?.data?.message || 'Erreur lors de l\'inscription');
     }
-    return response.data;
   },
 
   logout: () => {
-    // Supprimer le token et l'utilisateur
     localStorage.removeItem('token');
     localStorage.removeItem('user');
   },

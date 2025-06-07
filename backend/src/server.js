@@ -23,7 +23,9 @@ app.use(express.json());
 // Configuration de CORS avec des options spécifiques
 const allowedOrigins = [
   'https://myfirstadminhome.netlify.app',
-  'http://localhost:5173'
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000'
 ];
 
 app.use(cors({
