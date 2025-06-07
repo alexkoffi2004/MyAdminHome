@@ -20,14 +20,18 @@ const app = express();
 // Middleware pour parser le corps des requêtes
 app.use(express.json());
 
-// Configuration de CORS avec des options spécifiques
+// Configuration de l'environnement
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+// CORS configuration
 const allowedOrigins = [
   'http://localhost:5173',
   'http://127.0.0.1:5173',
   'http://localhost:3000',
   'http://127.0.0.1:3000',
   'https://myadminhome.onrender.com',
-  'https://myadminhome.netlify.app'
+  'https://myadminhome.netlify.app',
+  'https://myfirstadminhome.netlify.app'
 ];
 
 app.use(cors({
@@ -36,7 +40,7 @@ app.use(cors({
     if (!origin) return callback(null, true);
     
     // En développement, accepter toutes les origines
-    if (process.env.NODE_ENV === 'development') {
+    if (isDevelopment) {
       return callback(null, true);
     }
     
