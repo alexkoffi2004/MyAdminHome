@@ -17,7 +17,7 @@ import Button from '../../components/UI/Button';
 import Input from '../../components/UI/Input';
 import Select from '../../components/UI/Select';
 import { toast } from 'react-toastify';
-import axiosInstance from '../../services/axiosConfig';
+import api from '../../config/api';
 import { AxiosError } from 'axios';
 
 // Document types
@@ -144,7 +144,7 @@ const NewRequest = () => {
       formData.append('price', totalPrice.toString());
 
       // Envoyer la demande à l'API
-      const response = await axiosInstance.post('/requests', formData, {
+      const response = await api.post('/requests', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
