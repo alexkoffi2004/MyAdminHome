@@ -286,45 +286,45 @@ const ProcessRequest = () => {
                   <div className="flex gap-4">
                     <Button
                       variant="primary"
-                      onClick={() => setDecision('approve')}
+                  onClick={() => setDecision('approve')}
                       disabled={isProcessing}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
                       Approuver
-                    </Button>
-                    <Button
+                </Button>
+                <Button
                       variant="danger"
-                      onClick={() => setDecision('reject')}
+                  onClick={() => setDecision('reject')}
                       disabled={isProcessing}
-                    >
-                      <XCircle className="mr-2 h-4 w-4" />
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
                       Rejeter
-                    </Button>
-                  </div>
+                </Button>
+              </div>
 
-                  {decision === 'reject' && (
+              {decision === 'reject' && (
                     <div className="space-y-2">
                       <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                        Motif du rejet
-                      </label>
-                      <textarea
-                        value={rejectionReason}
-                        onChange={(e) => setRejectionReason(e.target.value)}
+                    Motif du rejet
+                  </label>
+                  <textarea
+                    value={rejectionReason}
+                    onChange={(e) => setRejectionReason(e.target.value)}
                         className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm placeholder-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:placeholder-neutral-500"
                         rows={3}
                         placeholder="Veuillez indiquer le motif du rejet..."
-                      />
-                    </div>
-                  )}
+                  />
+                </div>
+              )}
 
-                  {decision && (
-                    <Button
-                      onClick={handleProcess}
+              {decision && (
+                <Button
+                  onClick={handleProcess}
                       isLoading={processing}
                       fullWidth
-                    >
+                >
                       Confirmer {decision === 'approve' ? 'l\'approbation' : 'le rejet'}
-                    </Button>
+                </Button>
                   )}
                 </div>
               )}

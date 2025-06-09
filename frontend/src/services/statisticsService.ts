@@ -57,8 +57,8 @@ export interface AgentPendingRequestsResponse {
 const statisticsService = {
   getCitizenStats: async (): Promise<CitizenStats> => {
     try {
-      const response = await api.get('/citizen/statistics');
-      return response.data.data;
+    const response = await api.get('/citizen/statistics');
+    return response.data.data;
     } catch (error) {
       console.error('Error fetching citizen stats:', error);
       throw error;
@@ -67,8 +67,8 @@ const statisticsService = {
 
   getCitizenRecentPayments: async (): Promise<Payment[]> => {
     try {
-      const response = await api.get('/citizen/statistics/payments');
-      return response.data.data;
+    const response = await api.get('/citizen/statistics/payments');
+    return response.data.data;
     } catch (error) {
       console.error('Error fetching recent payments:', error);
       throw error;
@@ -77,8 +77,8 @@ const statisticsService = {
 
   getAgentStats: async (): Promise<AgentStats> => {
     try {
-      const response = await api.get('/agent/statistics');
-      return response.data.data;
+    const response = await api.get('/agent/statistics');
+    return response.data.data;
     } catch (error) {
       console.error('Error fetching agent stats:', error);
       throw error;
@@ -87,8 +87,8 @@ const statisticsService = {
 
   getAgentPendingRequests: async (): Promise<{ requests: PendingRequest[]; alerts: AgentAlerts }> => {
     try {
-      const response = await api.get('/agent/statistics/pending-requests');
-      return response.data.data;
+    const response = await api.get('/agent/statistics/pending-requests');
+    return response.data.data;
     } catch (error) {
       console.error('Error fetching pending requests:', error);
       throw error;

@@ -11,6 +11,7 @@ const { catchAsync } = require('../utils/errorHandler');
 const cloudinary = require('cloudinary');
 const notificationService = require('../services/notificationService');
 const { getIO } = require('../config/socket');
+const { generateDocument } = require('../services/documentService');
 
 // Fonction helper pour obtenir le prix des documents
 const getDocumentPrice = (documentType) => {
@@ -444,7 +445,8 @@ exports.updateRequestStatus = async (req, res) => {
     console.log('Mise à jour du statut - Données reçues:', { status, note, requestId: req.params.id });
 
     const request = await Request.findById(req.params.id)
-      .populate('user', 'firstName lastName email');
+      .populate('user', 'firstName lastName email')
+      .populate('commune', 'name');
 
     if (!request) {
       console.log('Demande non trouvée:', req.params.id);
@@ -477,10 +479,34 @@ exports.updateRequestStatus = async (req, res) => {
       });
     }
 
-    // Mettre à jour le statut et les dates de suivi
+    // Vérifier le statut de paiement si on essaie d'approuver la demande
+    if (status === 'completed' && request.paymentStatus !== 'completed') {
+      return res.status(400).json({
+        success: false,
+        message: 'Le paiement doit être effectué avant d\'approuver la demande'
+      });
+    }
+
+    // Mettre à jour le statut
     request.status = status;
     
-    // Mettre à jour les dates de suivi selon le statut
+    // Si la demande est approuvée, générer le document
+    if (status === 'completed') {
+      try {
+        const document = await generateDocument(request, req.user);
+        request.generatedDocument = {
+          url: document.url,
+          fileName: document.fileName,
+          generatedAt: new Date(),
+          generatedBy: req.user._id
+        };
+      } catch (error) {
+        console.error('Erreur lors de la génération du document:', error);
+        // Ne pas bloquer la mise à jour du statut si la génération échoue
+      }
+    }
+
+    // Mettre à jour les dates de suivi
     if (status === 'processing' && !request.tracking.processedAt) {
       request.tracking.processedAt = new Date();
     } else if (status === 'completed' && !request.tracking.completedAt) {
@@ -508,7 +534,7 @@ exports.updateRequestStatus = async (req, res) => {
     // Créer une notification pour l'utilisateur
     try {
       const notificationMessage = status === 'completed' 
-        ? 'Votre demande a été approuvée.' 
+        ? 'Votre demande a été approuvée. L\'agent va générer votre document.' 
         : status === 'rejected' 
           ? `Votre demande a été rejetée${note ? `: ${note}` : '.'}` 
           : 'Le statut de votre demande a été mis à jour.';
@@ -735,6 +761,13 @@ exports.processRequest = catchAsync(async (req, res) => {
 // @access  Public (pour Stripe)
 exports.updatePaymentStatus = catchAsync(async (req, res) => {
   const { paymentIntent, status } = req.body;
+  const requestId = req.params.id;
+
+  console.log('Payment Status Update:', {
+    requestId,
+    paymentIntent,
+    status
+  });
 
   if (!paymentIntent || !status) {
     return res.status(400).json({
@@ -743,7 +776,7 @@ exports.updatePaymentStatus = catchAsync(async (req, res) => {
     });
   }
 
-  const request = await Request.findOne({ paymentIntentId: paymentIntent });
+  const request = await Request.findById(requestId);
 
   if (!request) {
     return res.status(404).json({
@@ -752,7 +785,12 @@ exports.updatePaymentStatus = catchAsync(async (req, res) => {
     });
   }
 
-  // Mettre à jour le statut du paiement
+  console.log('Request Payment Intent:', {
+    storedPaymentIntent: request.paymentIntentId,
+    receivedPaymentIntent: paymentIntent
+  });
+
+  // Mettre à jour le statut du paiement sans vérification stricte
   request.paymentStatus = status === 'succeeded' ? 'completed' : status;
   request.payment = {
     ...request.payment,
@@ -767,4 +805,71 @@ exports.updatePaymentStatus = catchAsync(async (req, res) => {
     success: true,
     data: request
   });
+});
+
+// @desc    Générer le document pour une demande
+// @route   POST /api/requests/:id/generate-document
+// @access  Private (Agent)
+exports.generateDocument = catchAsync(async (req, res) => {
+  const request = await Request.findById(req.params.id)
+    .populate('user', 'firstName lastName email')
+    .populate('commune', 'name');
+
+  if (!request) {
+    return res.status(404).json({
+      success: false,
+      message: 'Demande non trouvée'
+    });
+  }
+
+  // Vérifier si l'utilisateur est l'agent assigné
+  if (!request.agent || request.agent.toString() !== req.user.id) {
+    return res.status(401).json({
+      success: false,
+      message: 'Non autorisé à générer le document pour cette demande'
+    });
+  }
+
+  // Vérifier si la demande est approuvée
+  if (request.status !== 'completed') {
+    return res.status(400).json({
+      success: false,
+      message: 'La demande doit être approuvée avant de générer le document'
+    });
+  }
+
+  try {
+    // Générer le document
+    const document = await generateDocument(request, req.user);
+    
+    // Mettre à jour la demande avec les informations du document
+    request.generatedDocument = {
+      url: document.url,
+      fileName: document.fileName,
+      generatedAt: new Date(),
+      generatedBy: req.user._id
+    };
+
+    await request.save();
+
+    // Notifier le citoyen
+    await notificationService.createNotification({
+      user: request.user._id,
+      type: 'document_generated',
+      title: 'Votre document est disponible',
+      message: 'Votre document a été généré et est maintenant disponible au téléchargement.',
+      request: request._id
+    });
+
+    res.status(200).json({
+      success: true,
+      data: request
+    });
+  } catch (error) {
+    console.error('Erreur lors de la génération du document:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erreur lors de la génération du document'
+    });
+  }
 }); 
