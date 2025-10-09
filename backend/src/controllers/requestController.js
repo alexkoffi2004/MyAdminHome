@@ -3,12 +3,13 @@ const User = require('../models/User');
 const Commune = require('../models/Commune');
 const { uploadFile } = require('../services/cloudinaryService');
 const { createPaymentIntent, savePayment } = require('../services/stripeService');
-const { generateReceipt } = require('../services/pdfService');
+const { generateReceipt, generateBirthCertificate } = require('../services/pdfService');
 const { assignRequestToAgent } = require('../services/agentAssignmentService');
 const asyncHandler = require('../middleware/async');
 const ErrorResponse = require('../utils/errorResponse');
 const { catchAsync } = require('../utils/errorHandler');
 const cloudinary = require('cloudinary');
+const fs = require('fs');
 const notificationService = require('../services/notificationService');
 const { getIO } = require('../config/socket');
 const { generateDocument } = require('../services/documentService');
@@ -188,6 +189,79 @@ exports.initializePayment = catchAsync(async (req, res) => {
   });
 });
 
+// @desc    Approuver une demande (Agent/Admin) et générer l'extrait de naissance
+// @route   POST /api/requests/:id/approve
+// @access  Private (Agent/Admin)
+exports.approveRequest = async (req, res) => {
+  try {
+    const { anneeRegistre, numeroRegistre } = req.body;
+
+    const demande = await Request.findById(req.params.id);
+    if (!demande) {
+      return res.status(404).json({ success: false, message: 'Demande introuvable' });
+    }
+
+    // Vérifier si l'utilisateur est l'agent assigné ou admin
+    const isAssignedAgent = demande.agent && demande.agent.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    if (!isAssignedAgent && !isAdmin) {
+      return res.status(401).json({ success: false, message: 'Non autorisé' });
+    }
+
+    // Mettre à jour les champs saisis par l'agent
+    demande.anneeRegistre = anneeRegistre;
+    demande.numeroRegistre = numeroRegistre;
+
+    // Mettre à jour le statut selon le modèle utilisé (FR ou EN)
+    if (demande.statut !== undefined) {
+      demande.statut = 'validée';
+    }
+    if (demande.status !== undefined) {
+      demande.status = 'completed';
+      demande.paymentStatus = 'completed';
+    }
+
+    await demande.save();
+
+    // Générer le PDF d'extrait de naissance et récupérer le chemin de fichier
+const { filePath } = await generateBirthCertificate(demande);
+console.log("Chemin généré du PDF :", { filePath });
+
+const uploadResult = await cloudinary.uploader.upload(filePath, {
+  folder: "extraits",
+  resource_type: "raw",
+});
+
+console.log('uploadResult', uploadResult);
+
+// Supprimer le fichier local
+try {
+  fs.unlinkSync(filePath);
+} catch (e) {
+  console.error('Erreur lors de la suppression du fichier local:', e);
+}
+
+console.log('demande.documentUrl', demande.documentUrl);
+
+demande.documentUrl = uploadResult.secure_url;
+demande.status = "completed";
+await demande.save();
+
+console.log('demande.status', demande.status);
+
+res.status(200).json({
+  success: true,
+  message: "Demande validée et extrait généré avec succès",
+  DocumentUrl: uploadResult.secure_url,
+});
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: 'Erreur interne', error: error.message });
+  }
+
+};
+
 // @desc    Obtenir toutes les demandes d'un citoyen
 // @route   GET /api/requests
 // @access  Private (Citoyen)
@@ -241,6 +315,8 @@ exports.getRequest = catchAsync(async (req, res) => {
       status: request.status,
       date: request.createdAt,
       lastUpdate: request.updatedAt,
+      // Prefer explicit documentUrl, otherwise fallback to generatedDocument.url when available
+      documentUrl: request.documentUrl || (request.generatedDocument && request.generatedDocument.url) || undefined,
       details: {
         fullName: request.fullName,
         birthDate: request.birthDate,
@@ -849,6 +925,11 @@ exports.generateDocument = catchAsync(async (req, res) => {
       generatedAt: new Date(),
       generatedBy: req.user._id
     };
+
+    // Renseigner aussi documentUrl pour cohérence côté frontend
+    if (!request.documentUrl) {
+      request.documentUrl = document.url;
+    }
 
     await request.save();
 

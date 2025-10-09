@@ -48,7 +48,28 @@ const requestSchema = new mongoose.Schema({
   fatherName: {
     type: String
   },
+  fatherProfession: {
+    type: String
+  },
+  fatherDomicile: {
+    type: String
+  },
   motherName: {
+    type: String
+  },
+  motherProfession: {
+    type: String
+  },
+  motherDomicile: {
+    type: String
+  },
+  emailCitoyen: {
+    type: String
+  },
+  anneeRegistre: {
+    type: String
+  },
+  numeroRegistre: {
     type: String
   },
   // Informations de contact
@@ -57,6 +78,10 @@ const requestSchema = new mongoose.Schema({
   },
   address: {
     type: String
+  },
+  statut: {
+    type: String,
+    default: 'pending'
   },
   // Méthode de livraison
   deliveryMethod: {
@@ -102,6 +127,17 @@ const requestSchema = new mongoose.Schema({
       default: 'card'
     },
     transactionId: String
+  },
+  // URL publique du document généré (ex: Cloudinary)
+  documentUrl: {
+    type: String
+  },
+  // Métadonnées du document généré
+  generatedDocument: {
+    url: { type: String },
+    fileName: { type: String },
+    generatedAt: { type: Date },
+    generatedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
   // Suivi de la demande
   tracking: {

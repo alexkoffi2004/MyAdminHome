@@ -16,7 +16,8 @@ const {
   processRequest,
   initializePayment,
   updatePaymentStatus,
-  generateDocument
+  generateDocument,
+  approveRequest
 } = require('../controllers/requestController');
 
 // Toutes les routes sont protégées
@@ -38,6 +39,7 @@ router.post('/:id/payment-status', updatePaymentStatus);
 router.get('/agent/requests', isAgent, getAgentRequests);
 router.put('/:id/status', isAgent, updateRequestStatus);
 router.put('/:id/process', isAgent, processRequest);
+router.put("/:id/approve", isAgent, approveRequest);
 
 // Route pour générer le document
 router.post('/:id/generate-document', isAgent, generateDocument);

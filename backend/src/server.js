@@ -3,8 +3,10 @@ const dotenv = require('dotenv');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const connectDB = require('./config/db');
+const path = require('path');
 const { errorHandler } = require('./utils/errorHandler');
 const { initializeSocket } = require('./config/socket');
+
 
 // Chargement des variables d'environnement
 dotenv.config();
@@ -54,6 +56,9 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
 }));
+
+// Permet d'accéder aux fichiers du dossier "extraits" depuis le navigateur
+app.use('/extraits', express.static(path.join(process.cwd(), 'extraits')));
 
 // Middleware pour la journalisation
 app.use((req, res, next) => {
