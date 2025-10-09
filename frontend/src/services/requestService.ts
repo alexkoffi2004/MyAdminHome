@@ -18,6 +18,7 @@ export interface RequestDetails {
   date: Date;
   lastUpdate: Date;
   documentUrl?: string;
+  price: number;
   details: {
     fullName: string;
     birthDate: Date;

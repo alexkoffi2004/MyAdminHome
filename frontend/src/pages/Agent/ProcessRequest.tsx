@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft,
-  Clock,
   CheckCircle,
   XCircle,
   AlertTriangle,
@@ -25,13 +24,16 @@ import { fr } from 'date-fns/locale';
 const ProcessRequest = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user: _unusedUser } = useAuth();
   const [request, setRequest] = useState<RequestDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   const [decision, setDecision] = useState<'approve' | 'reject' | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [anneeRegistre, setAnneeRegistre] = useState('');
+  const [numeroRegistre, setNumeroRegistre] = useState('');
+
 
   useEffect(() => {
     fetchRequestDetails();
@@ -68,43 +70,52 @@ const ProcessRequest = () => {
 
   const handleProcess = async () => {
     if (!decision || !request) return;
-    
+  
+    if (decision === 'approve' && (!anneeRegistre || !numeroRegistre)) {
+      toast.error('Veuillez renseigner l\'année et le numéro du registre avant d\'approuver.');
+      return;
+    }
+  
     setProcessing(true);
     try {
-      const status = decision === 'approve' ? 'completed' : 'rejected';
-      const note = decision === 'reject' ? rejectionReason : undefined;
-      
-      console.log('Updating request status:', { status, note });
-      
-      const response = await api.put(`/requests/${request.id}/status`, {
-        status,
-        note
-      });
-
-      console.log('Update response:', response.data);
-
-      if (response.data.success) {
-        toast.success(
-          decision === 'approve' 
-            ? 'Demande approuvée avec succès' 
-            : 'Demande rejetée avec succès'
-        );
-        navigate('/agent/requests');
-      } else {
-        throw new Error(response.data.message || 'Erreur lors du traitement de la demande');
+      if (decision === 'approve') {
+        // Nouvelle route backend dédiée à l’approbation
+        const response = await api.put(`/requests/${request.id}/approve`, {
+          anneeRegistre,
+          numeroRegistre,
+        });
+        if (response.data.success) {
+          toast.success('Demande approuvée et extrait généré avec succès');
+          navigate('/agent/requests');
+        } else {
+          throw new Error(response.data.message || 'Erreur lors de l\'approbation de la demande');
+        }
+      }else {
+        // Gestion du rejet inchangée
+        const response = await api.put(`/requests/${request.id}/status`, {
+          status: 'rejected',
+          note: rejectionReason,
+        });
+  
+        if (response.data.success) {
+          toast.success('Demande rejetée avec succès');
+          navigate('/agent/requests');
+        } else {
+          throw new Error(response.data.message || 'Erreur lors du traitement du rejet');
+        }
       }
     } catch (error) {
-      console.error('Error processing request:', error);
+      console.error('Erreur lors du traitement de la demande:', error);
       if (error instanceof AxiosError) {
-        toast.error(error.response?.data?.message || 'Erreur lors du traitement de la demande');
+        toast.error(error.response?.data?.message || 'Erreur lors du traitement');
       } else {
-        toast.error('Erreur lors du traitement de la demande');
+        toast.error('Erreur inattendue');
       }
     } finally {
       setProcessing(false);
     }
   };
-
+  
   const handleProcessRequest = async () => {
     try {
       if (!id) {
@@ -239,6 +250,69 @@ const ProcessRequest = () => {
             </div>
           </Card>
 
+          <Card title="Informations du citoyen">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="flex items-start gap-2">
+                <User className="mt-1 h-4 w-4 text-neutral-400" />
+                <div>
+                  <p className="text-sm font-medium text-neutral-900 dark:text-white">Nom complet</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">{request.details.fullName || 'Non spécifié'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <Calendar className="mt-1 h-4 w-4 text-neutral-400" />
+                <div>
+                  <p className="text-sm font-medium text-neutral-900 dark:text-white">Date de naissance</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                    {request.details.birthDate ? format(new Date(request.details.birthDate), 'dd MMMM yyyy', { locale: fr }) : 'Non spécifiée'}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <MapPin className="mt-1 h-4 w-4 text-neutral-400" />
+                <div>
+                  <p className="text-sm font-medium text-neutral-900 dark:text-white">Lieu de naissance</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">{request.details.birthPlace || 'Non spécifié'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <User className="mt-1 h-4 w-4 text-neutral-400" />
+                <div>
+                  <p className="text-sm font-medium text-neutral-900 dark:text-white">Nom du père</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">{request.details.fatherName || 'Non spécifié'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <User className="mt-1 h-4 w-4 text-neutral-400" />
+                <div>
+                  <p className="text-sm font-medium text-neutral-900 dark:text-white">Nom de la mère</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">{request.details.motherName || 'Non spécifié'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <FileText className="mt-1 h-4 w-4 text-neutral-400" />
+                <div>
+                  <p className="text-sm font-medium text-neutral-900 dark:text-white">Méthode de livraison</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">{request.details.deliveryMethod === 'delivery' ? 'Livraison' : 'Téléchargement'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <User className="mt-1 h-4 w-4 text-neutral-400" />
+                <div>
+                  <p className="text-sm font-medium text-neutral-900 dark:text-white">Téléphone</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">{request.details.phoneNumber || 'Non spécifié'}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2">
+                <MapPin className="mt-1 h-4 w-4 text-neutral-400" />
+                <div>
+                  <p className="text-sm font-medium text-neutral-900 dark:text-white">Adresse</p>
+                  <p className="text-sm text-neutral-500 dark:text-neutral-400">{request.details.address || 'Non spécifiée'}</p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
           <Card title="Documents requis">
             <div className="space-y-4">
               {formattedRequest.documents.map((doc, index) => (
@@ -301,6 +375,37 @@ const ProcessRequest = () => {
                       Rejeter
                 </Button>
               </div>
+
+              {decision === 'approve' && (
+  <div className="space-y-4">
+    <div>
+      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+        Année du registre
+      </label>
+      <input
+        type="text"
+        value={anneeRegistre}
+        onChange={(e) => setAnneeRegistre(e.target.value)}
+        placeholder="Ex : 2024"
+        className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm placeholder-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:placeholder-neutral-500"
+      />
+    </div>
+
+    <div>
+      <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+        Numéro du registre
+      </label>
+      <input
+        type="text"
+        value={numeroRegistre}
+        onChange={(e) => setNumeroRegistre(e.target.value)}
+        placeholder="Ex : 4498/04"
+        className="block w-full rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm placeholder-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-white dark:placeholder-neutral-500"
+      />
+    </div>
+  </div>
+)}
+
 
               {decision === 'reject' && (
                     <div className="space-y-2">

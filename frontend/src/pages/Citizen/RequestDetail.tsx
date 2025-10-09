@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { 
-  FileText, 
   Clock, 
   Calendar,
   MapPin,
@@ -114,6 +113,7 @@ const validateAndTransformData = (response: any): RequestDetails => {
     date: parseDate(data.date, 'date'),
     lastUpdate: parseDate(data.lastUpdate, 'lastUpdate'),
     documentUrl: data.documentUrl,
+    price: data.price || 0,
     details: {
       fullName: data.details?.fullName || 'Non spécifié',
       birthDate: parseDate(data.details?.birthDate, 'birthDate'),
@@ -163,10 +163,11 @@ const RequestDetail = () => {
 
         console.log('Fetching request details for ID:', id);
         const response = await getRequestDetails(id);
-        console.log('API response:', response);
+        console.log('API response:', response); 
         
         const validatedData = validateAndTransformData(response);
         setRequest(validatedData);
+        console.log('request')
       } catch (error) {
         console.error('Error fetching request details:', error);
         toast.error('Erreur lors du chargement des détails de la demande');
@@ -221,7 +222,7 @@ const RequestDetail = () => {
               </Button>
             </Link>
           )}
-          {request.status === 'completed' && (
+          {request.status === 'completed' && request.documentUrl && (
             <Button
               variant="outline"
               className="w-full"

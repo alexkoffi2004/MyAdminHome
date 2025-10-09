@@ -23,26 +23,26 @@ import { AxiosError } from 'axios';
 // Document types
 const documentTypes = [
   { value: 'birth_certificate', label: 'Acte de naissance' },
-  { value: 'marriage_certificate', label: 'Acte de mariage' },
-  { value: 'death_certificate', label: 'Acte de décès' },
-  { value: 'nationality_certificate', label: 'Certificat de nationalité' },
-  { value: 'residence_certificate', label: 'Certificat de résidence' },
-  { value: 'criminal_record', label: 'Casier judiciaire' },
+  // { value: 'marriage_certificate', label: 'Acte de mariage' },
+  // { value: 'death_certificate', label: 'Acte de décès' },
+  // { value: 'nationality_certificate', label: 'Certificat de nationalité' },
+  // { value: 'residence_certificate', label: 'Certificat de résidence' },
+  // { value: 'criminal_record', label: 'Casier judiciaire' },
 ];
 
 // Communes
 const communes = [
   { value: 'abobo', label: 'Abobo' },
-  { value: 'adjame', label: 'Adjamé' },
-  { value: 'anyama', label: 'Anyama' },
-  { value: 'attécoubé', label: 'Attécoubé' },
-  { value: 'cocody', label: 'Cocody' },
-  { value: 'koumassi', label: 'Koumassi' },
-  { value: 'marcory', label: 'Marcory' },
-  { value: 'plateau', label: 'Plateau' },
-  { value: 'port-bouët', label: 'Port-Bouët' },
-  { value: 'treichville', label: 'Treichville' },
-  { value: 'yopougon', label: 'Yopougon' }
+  // { value: 'adjame', label: 'Adjamé' },
+  // { value: 'anyama', label: 'Anyama' },
+  // { value: 'attécoubé', label: 'Attécoubé' },
+  // { value: 'cocody', label: 'Cocody' },
+  // { value: 'koumassi', label: 'Koumassi' },
+  // { value: 'marcory', label: 'Marcory' },
+  // { value: 'plateau', label: 'Plateau' },
+  // { value: 'port-bouët', label: 'Port-Bouët' },
+  // { value: 'treichville', label: 'Treichville' },
+  // { value: 'yopougon', label: 'Yopougon' }
 ];
 
 // Delivery methods
@@ -93,16 +93,16 @@ const NewRequest = () => {
     switch(docType) {
       case 'birth_certificate':
         return 1000;
-      case 'marriage_certificate':
-        return 1500;
-      case 'death_certificate':
-        return 1500;
-      case 'nationality_certificate':
-        return 5000;
-      case 'residence_certificate':
-        return 2000;
-      case 'criminal_record':
-        return 3000;
+      // case 'marriage_certificate':
+      //   return 1500;
+      // case 'death_certificate':
+      //   return 1500;
+      // case 'nationality_certificate':
+      //   return 5000;
+      // case 'residence_certificate':
+      //   return 2000;
+      // case 'criminal_record':
+      //   return 3000;
       default:
         return 0;
     }
