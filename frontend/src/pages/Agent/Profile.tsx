@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
-  User, 
+  User as UserIcon, 
   Mail, 
   Phone, 
   MapPin, 
@@ -19,25 +19,11 @@ import {
 } from 'lucide-react';
 import { Card } from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
-import { useAuth } from '../../contexts/AuthContext';
-import userService from '../../services/userService';
+import { useAuth, User } from '../../contexts/AuthContext';
+import api from '../../config/api';
 import { toast } from 'react-hot-toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-
-interface ProfileData {
-  firstName: string;
-  lastName: string;
-  email: string;
-  phoneNumber: string;
-  address: string;
-  commune?: string | { _id: string; name: string };
-  role: string;
-  isActive: boolean;
-  createdAt: string;
-  maxDailyRequests?: number;
-  dailyRequestCount?: number;
-}
 
 interface PasswordData {
   currentPassword: string;
@@ -54,14 +40,14 @@ const AgentProfile = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-  const [profileData, setProfileData] = useState<ProfileData>({
+  const [profileData, setProfileData] = useState<Partial<User>>({
     firstName: user?.firstName || '',
     lastName: user?.lastName || '',
     email: user?.email || '',
     phoneNumber: user?.phoneNumber || '',
     address: user?.address || '',
     commune: user?.commune || '',
-    role: user?.role || '',
+    role: user?.role,
     isActive: user?.isActive || true,
     createdAt: user?.createdAt || new Date().toISOString(),
     maxDailyRequests: user?.maxDailyRequests || 20,
@@ -107,7 +93,7 @@ const AgentProfile = () => {
         phoneNumber: user?.phoneNumber || '',
         address: user?.address || '',
         commune: user?.commune || '',
-        role: user?.role || '',
+        role: user?.role,
         isActive: user?.isActive || true,
         createdAt: user?.createdAt || new Date().toISOString(),
         maxDailyRequests: user?.maxDailyRequests || 20,
@@ -135,7 +121,8 @@ const AgentProfile = () => {
       }
 
       // Mettre à jour le profil
-      await userService.updateUser(user!._id, {
+      const userId = user!._id || user!.id;
+      await api.put(`/admin/users/${userId}`, {
         firstName: profileData.firstName,
         lastName: profileData.lastName,
         email: profileData.email,
@@ -144,16 +131,13 @@ const AgentProfile = () => {
       });
 
       // Mettre à jour le contexte
-      if (updateUser) {
-        updateUser({
-          ...user!,
-          firstName: profileData.firstName,
-          lastName: profileData.lastName,
-          email: profileData.email,
-          phoneNumber: profileData.phoneNumber,
-          address: profileData.address
-        });
-      }
+      updateUser({
+        firstName: profileData.firstName!,
+        lastName: profileData.lastName!,
+        email: profileData.email!,
+        phoneNumber: profileData.phoneNumber,
+        address: profileData.address
+      });
 
       toast.success('Profil mis à jour avec succès');
       setIsEditing(false);
@@ -188,8 +172,7 @@ const AgentProfile = () => {
       }
 
       // Appeler l'API pour changer le mot de passe
-      // Note: Vous devrez créer cette route dans votre backend
-      await userService.updateUser(user!._id, {
+      await api.put(`/admin/users/${user!._id || user!.id}`, {
         currentPassword: passwordData.currentPassword,
         newPassword: passwordData.newPassword
       });
@@ -506,7 +489,7 @@ const AgentProfile = () => {
               <div className="flex items-center justify-between">
                 <span className="text-sm text-neutral-600 dark:text-neutral-400">Membre depuis</span>
                 <span className="text-sm font-medium text-neutral-900 dark:text-white">
-                  {format(new Date(profileData.createdAt), 'MMM yyyy', { locale: fr })}
+                  {profileData.createdAt ? format(new Date(profileData.createdAt), 'MMM yyyy', { locale: fr }) : 'N/A'}
                 </span>
               </div>
             </div>
@@ -561,7 +544,7 @@ const AgentProfile = () => {
               <div>
                 <p className="text-xs text-neutral-500 dark:text-neutral-400">Date de création</p>
                 <p className="mt-1 text-sm text-neutral-900 dark:text-white">
-                  {format(new Date(profileData.createdAt), 'dd MMMM yyyy', { locale: fr })}
+                  {profileData.createdAt ? format(new Date(profileData.createdAt), 'dd MMMM yyyy', { locale: fr }) : 'N/A'}
                 </p>
               </div>
             </div>

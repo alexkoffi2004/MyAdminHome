@@ -4,14 +4,20 @@ import authService, { LoginCredentials, AuthResponse } from '../services/authSer
 export type UserRole = 'citizen' | 'agent' | 'admin' | 'super_admin';
 
 export interface User {
+  _id: string;
   id: string;
   firstName: string;
   lastName: string;
   email: string;
   phone?: string;
+  phoneNumber?: string;
+  address?: string;
   role: UserRole;
-  commune?: string;
+  commune?: string | { _id: string; name: string };
+  isActive?: boolean;
   createdAt?: string;
+  maxDailyRequests?: number;
+  dailyRequestCount?: number;
 }
 
 interface AuthContextType {
