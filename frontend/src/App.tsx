@@ -22,6 +22,7 @@ const RequestDetail = lazy(() => import('./pages/Citizen/RequestDetail'));
 const Payment = lazy(() => import('./pages/Citizen/Payment'));
 const PaymentConfirm = lazy(() => import('./pages/Citizen/PaymentConfirm'));
 const Profile = lazy(() => import('./pages/Citizen/Profile'));
+const CitizenNotifications = lazy(() => import('./pages/Citizen/Notifications'));
 
 // Agent Pages
 const AgentDashboard = lazy(() => import('./pages/Agent/Dashboard'));
@@ -29,6 +30,7 @@ const RequestsList = lazy(() => import('./pages/Agent/RequestsList'));
 const ProcessRequest = lazy(() => import('./pages/Agent/ProcessRequest'));
 const GenerateDocument = lazy(() => import('./pages/Agent/GenerateDocument'));
 const History = lazy(() => import('./pages/Agent/History'));
+const AgentProfile = lazy(() => import('./pages/Agent/Profile'));
 
 // Admin Pages
 const AdminDashboard = lazy(() => import('./pages/Admin/Dashboard'));
@@ -37,6 +39,8 @@ const DocumentTypes = lazy(() => import('./pages/Admin/DocumentTypes'));
 const PaymentTracking = lazy(() => import('./pages/Admin/PaymentTracking'));
 const Statistics = lazy(() => import('./pages/Admin/Statistics'));
 const CreateAgent = lazy(() => import('./pages/Admin/CreateAgent'));
+const AdminNotifications = lazy(() => import('./pages/Admin/Notifications'));
+const AdminProfile = lazy(() => import('./pages/Admin/Profile'));
 
 const App = () => {
   const location = useLocation();
@@ -73,6 +77,7 @@ const App = () => {
             <Route path="payment/:id" element={<Payment />} />
           <Route path="payment/confirm/:id" element={<PaymentConfirm />} />
             <Route path="profile" element={<Profile />} />
+            <Route path="notifications" element={<CitizenNotifications />} />
           </Route>
           
           <Route path="/agent" element={
@@ -86,6 +91,7 @@ const App = () => {
             <Route path="process/:id" element={<ProcessRequest />} />
             <Route path="generate/:id" element={<GenerateDocument />} />
             <Route path="history" element={<History />} />
+            <Route path="profile" element={<AgentProfile />} />
           </Route>
           
           <Route path="/admin" element={
@@ -100,6 +106,8 @@ const App = () => {
             <Route path="document-types" element={<DocumentTypes />} />
             <Route path="payments" element={<PaymentTracking />} />
             <Route path="statistics" element={<Statistics />} />
+            <Route path="notifications" element={<AdminNotifications />} />
+            <Route path="profile" element={<AdminProfile />} />
           </Route>
           
           {/* Catch-all route */}

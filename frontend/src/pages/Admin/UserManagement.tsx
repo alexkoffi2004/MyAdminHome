@@ -1,27 +1,33 @@
 import { useState, useEffect } from 'react';
 import { 
   Search,
-  Filter,
   Edit,
   Trash2,
-  UserPlus,
   Shield,
   User,
   UserCheck,
+  X,
+  Mail,
+  Phone,
+  MapPin,
+  Calendar,
+  Save
 } from 'lucide-react';
 import { Card } from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
-import { useAuth } from '../../contexts/AuthContext';
 import userService, { UserData } from '../../services/userService';
 import { toast } from 'react-hot-toast';
 import { useNavigate } from 'react-router-dom';
 
 const UserManagement = () => {
-  const { user } = useAuth();
   const [users, setUsers] = useState<UserData[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserData['role'] | 'all'>('all');
+  const [selectedUser, setSelectedUser] = useState<UserData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedUser, setEditedUser] = useState<Partial<UserData>>({});
   const navigate = useNavigate();
 
   const fetchUsers = async () => {
@@ -52,6 +58,53 @@ const UserManagement = () => {
         toast.error('Erreur lors de la suppression de l\'utilisateur');
       }
     }
+  };
+
+  const handleViewUser = (user: UserData) => {
+    setSelectedUser(user);
+    setEditedUser(user);
+    setIsEditing(false);
+    setIsModalOpen(true);
+  };
+
+  const handleEditUser = () => {
+    setIsEditing(true);
+  };
+
+  const handleSaveUser = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      await userService.updateUser(selectedUser._id, editedUser);
+      toast.success('Utilisateur modifié avec succès');
+      setIsModalOpen(false);
+      setIsEditing(false);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast.error('Erreur lors de la modification de l\'utilisateur');
+    }
+  };
+
+  const handleToggleActive = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      await userService.updateUser(selectedUser._id, { isActive: !selectedUser.isActive });
+      toast.success(`Utilisateur ${!selectedUser.isActive ? 'activé' : 'désactivé'} avec succès`);
+      setIsModalOpen(false);
+      fetchUsers();
+    } catch (error) {
+      console.error('Error toggling user status:', error);
+      toast.error('Erreur lors du changement de statut');
+    }
+  };
+
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setSelectedUser(null);
+    setIsEditing(false);
+    setEditedUser({});
   };
 
   const filteredUsers = users
@@ -188,7 +241,11 @@ const UserManagement = () => {
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
                       <div className="flex items-center justify-end gap-2">
-                        <button className="rounded-lg p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white">
+                        <button 
+                          onClick={() => handleViewUser(user)}
+                          className="rounded-lg p-1 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800 dark:hover:text-white"
+                          title="Voir les détails"
+                        >
                           <Edit className="h-4 w-4" />
                         </button>
                         <button 
@@ -206,8 +263,228 @@ const UserManagement = () => {
           </table>
         </div>
       </Card>
+
+      {/* Modal de détails/modification */}
+      {isModalOpen && selectedUser && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-lg bg-white dark:bg-neutral-800 shadow-xl">
+            {/* Header */}
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-4 dark:border-neutral-700 dark:bg-neutral-800">
+              <h2 className="text-xl font-semibold text-neutral-900 dark:text-white">
+                {isEditing ? 'Modifier l\'utilisateur' : 'Détails de l\'utilisateur'}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="rounded-lg p-1 text-neutral-500 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:bg-neutral-700"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Informations personnelles */}
+              <div>
+                <h3 className="mb-4 text-lg font-medium text-neutral-900 dark:text-white">
+                  Informations personnelles
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      Prénom
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedUser.firstName || ''}
+                        onChange={(e) => setEditedUser({ ...editedUser, firstName: e.target.value })}
+                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white"
+                      />
+                    ) : (
+                      <p className="text-sm text-neutral-900 dark:text-white">{selectedUser.firstName}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      Nom
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedUser.lastName || ''}
+                        onChange={(e) => setEditedUser({ ...editedUser, lastName: e.target.value })}
+                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white"
+                      />
+                    ) : (
+                      <p className="text-sm text-neutral-900 dark:text-white">{selectedUser.lastName}</p>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      <Mail className="inline h-4 w-4 mr-1" />
+                      Email
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="email"
+                        value={editedUser.email || ''}
+                        onChange={(e) => setEditedUser({ ...editedUser, email: e.target.value })}
+                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white"
+                      />
+                    ) : (
+                      <p className="text-sm text-neutral-900 dark:text-white">{selectedUser.email}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      <Phone className="inline h-4 w-4 mr-1" />
+                      Téléphone
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="tel"
+                        value={editedUser.phoneNumber || ''}
+                        onChange={(e) => setEditedUser({ ...editedUser, phoneNumber: e.target.value })}
+                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white"
+                      />
+                    ) : (
+                      <p className="text-sm text-neutral-900 dark:text-white">{selectedUser.phoneNumber || 'Non spécifié'}</p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      Rôle
+                    </label>
+                    {isEditing ? (
+                      <select
+                        value={editedUser.role || selectedUser.role}
+                        onChange={(e) => setEditedUser({ ...editedUser, role: e.target.value as UserData['role'] })}
+                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white"
+                      >
+                        <option value="citizen">Citoyen</option>
+                        <option value="agent">Agent</option>
+                        <option value="admin">Administrateur</option>
+                      </select>
+                    ) : (
+                      <div>{getRoleBadge(selectedUser.role)}</div>
+                    )}
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      <MapPin className="inline h-4 w-4 mr-1" />
+                      Adresse
+                    </label>
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        value={editedUser.address || ''}
+                        onChange={(e) => setEditedUser({ ...editedUser, address: e.target.value })}
+                        className="w-full rounded-lg border border-neutral-200 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white"
+                      />
+                    ) : (
+                      <p className="text-sm text-neutral-900 dark:text-white">{selectedUser.address || 'Non spécifiée'}</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Informations système */}
+              <div className="border-t border-neutral-200 pt-6 dark:border-neutral-700">
+                <h3 className="mb-4 text-lg font-medium text-neutral-900 dark:text-white">
+                  Informations système
+                </h3>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      Statut
+                    </label>
+                    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                      selectedUser.isActive
+                        ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
+                        : 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/30 dark:text-neutral-400'
+                    }`}>
+                      {selectedUser.isActive ? 'Actif' : 'Inactif'}
+                    </span>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      <Calendar className="inline h-4 w-4 mr-1" />
+                      Date de création
+                    </label>
+                    <p className="text-sm text-neutral-900 dark:text-white">
+                      {new Date(selectedUser.createdAt).toLocaleDateString('fr-FR', {
+                        day: 'numeric',
+                        month: 'long',
+                        year: 'numeric'
+                      })}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      ID Utilisateur
+                    </label>
+                    <p className="text-xs font-mono text-neutral-600 dark:text-neutral-400">{selectedUser._id}</p>
+                  </div>
+
+                  {selectedUser.commune && (
+                    <div>
+                      <label className="mb-1 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                        Commune assignée
+                      </label>
+                      <p className="text-sm text-neutral-900 dark:text-white">
+                        {typeof selectedUser.commune === 'string' ? selectedUser.commune : selectedUser.commune.name}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 flex items-center justify-between border-t border-neutral-200 bg-white px-6 py-4 dark:border-neutral-700 dark:bg-neutral-800">
+              <Button
+                variant="outline"
+                onClick={handleToggleActive}
+              >
+                {selectedUser.isActive ? 'Désactiver' : 'Activer'}
+              </Button>
+              
+              <div className="flex gap-2">
+                {isEditing ? (
+                  <>
+                    <Button variant="outline" onClick={() => setIsEditing(false)}>
+                      Annuler
+                    </Button>
+                    <Button onClick={handleSaveUser}>
+                      <Save className="mr-2 h-4 w-4" />
+                      Enregistrer
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" onClick={closeModal}>
+                      Fermer
+                    </Button>
+                    <Button onClick={handleEditUser}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Modifier
+                    </Button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default UserManagement; 
+export default UserManagement;

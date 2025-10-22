@@ -26,6 +26,15 @@ export interface Payment {
   status: string;
 }
 
+export interface Activity {
+  id: string;
+  type: string;
+  description: string;
+  status: string;
+  timestamp: string;
+  user: string;
+}
+
 class AdminService {
   async getStats(): Promise<AdminStats> {
     const response = await api.get('/admin/stats');
@@ -34,6 +43,11 @@ class AdminService {
 
   async getRecentPayments(): Promise<Payment[]> {
     const response = await api.get('/admin/payments/recent');
+    return response.data.data;
+  }
+
+  async getRecentActivity(): Promise<Activity[]> {
+    const response = await api.get('/admin/activity/recent');
     return response.data.data;
   }
 }

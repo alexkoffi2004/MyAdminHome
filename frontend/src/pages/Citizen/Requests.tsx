@@ -109,6 +109,7 @@ const Requests = () => {
   // Filter requests
   const filteredRequests = requests.filter(request => {
     const matchesSearch = 
+      request.reference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       request._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
       getDocumentTypeTitle(request.documentType).toLowerCase().includes(searchTerm.toLowerCase()) ||
       request.commune.name.toLowerCase().includes(searchTerm.toLowerCase());
@@ -224,8 +225,8 @@ const Requests = () => {
               ) : (
                 filteredRequests.map((request) => (
                   <tr key={request._id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                    <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                      {request._id}
+                    <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-neutral-900 dark:text-white">
+                      {request.reference || request._id}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-900 dark:text-white">
                       {getDocumentTypeTitle(request.documentType)}

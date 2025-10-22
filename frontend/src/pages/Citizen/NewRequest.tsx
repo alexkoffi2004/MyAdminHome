@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { 
   FileText, 
   Upload, 
-  CreditCard, 
   Truck, 
   MapPin,
   AlertCircle,
   Info,
   User,
-  Phone
+  Phone,
+  Loader,
+  CheckCircle,
+  X
 } from 'lucide-react';
 import { Card } from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
@@ -19,16 +21,8 @@ import Select from '../../components/UI/Select';
 import { toast } from 'react-toastify';
 import api from '../../config/api';
 import { AxiosError } from 'axios';
+import documentTypeService, { DocumentType } from '../../services/documentTypeService';
 
-// Document types
-const documentTypes = [
-  { value: 'birth_certificate', label: 'Acte de naissance' },
-  // { value: 'marriage_certificate', label: 'Acte de mariage' },
-  // { value: 'death_certificate', label: 'Acte de décès' },
-  // { value: 'nationality_certificate', label: 'Certificat de nationalité' },
-  // { value: 'residence_certificate', label: 'Certificat de résidence' },
-  // { value: 'criminal_record', label: 'Casier judiciaire' },
-];
 
 // Communes
 const communes = [
@@ -53,23 +47,51 @@ const deliveryMethods = [
 ];
 
 interface NewRequestFormData {
+  // Étape 1: Type de document
   documentType: string;
   commune: string;
-  fullName: string;
-  birthDate: string;
-  birthPlace: string;
-  fatherName?: string;
-  motherName?: string;
+  
+  // Étape 2: Informations de l'enfant
+  childLastName: string;
+  childFirstName: string;
+  childBirthDate: string;
+  childBirthPlace: string;
+  childBirthTime: string;
+  childMaternity: string;
+  childGender: 'M' | 'F';
+  
+  // Étape 3: Informations des parents
+  // Père
+  fatherFullName: string;
+  fatherNationality: string;
+  fatherProfession: string;
+  fatherAddress: string;
+  // Mère
+  motherFullName: string;
+  motherNationality: string;
+  motherProfession: string;
+  motherAddress: string;
+  
+  // Étape 4: Documents
+  birthCertificate?: FileList;
+  fatherIdCard?: FileList;
+  motherIdCard?: FileList;
+  familyBook?: FileList;
+  marriageCertificate?: FileList;
+  
+  // Étape 5: Mode de réception
   deliveryMethod: string;
   address?: string;
   phoneNumber?: string;
-  identityDocument?: FileList;
 }
 
 const NewRequest = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
+  const [loadingDocTypes, setLoadingDocTypes] = useState(true);
+  const [docTypesError, setDocTypesError] = useState<string | null>(null);
   
   const { 
     control,
@@ -87,28 +109,31 @@ const NewRequest = () => {
   
   const selectedDocType = watch('documentType');
   const selectedDeliveryMethod = watch('deliveryMethod');
+
+  // Charger les types de documents depuis l'API (route publique)
+  useEffect(() => {
+    const fetchDocumentTypes = async () => {
+      try {
+        setLoadingDocTypes(true);
+        setDocTypesError(null);
+        const data = await documentTypeService.getAllPublic({ status: 'active' });
+        setDocumentTypes(data);
+      } catch (error) {
+        console.error('Error fetching document types:', error);
+        setDocTypesError('Impossible de charger les types de documents');
+        toast.error('Erreur lors du chargement des types de documents');
+      } finally {
+        setLoadingDocTypes(false);
+      }
+    };
+
+    fetchDocumentTypes();
+  }, []);
   
-  // Determine document price based on type
-  const getDocumentPrice = (docType: string) => {
-    switch(docType) {
-      case 'birth_certificate':
-        return 1000;
-      // case 'marriage_certificate':
-      //   return 1500;
-      // case 'death_certificate':
-      //   return 1500;
-      // case 'nationality_certificate':
-      //   return 5000;
-      // case 'residence_certificate':
-      //   return 2000;
-      // case 'criminal_record':
-      //   return 3000;
-      default:
-        return 0;
-    }
-  };
-  
-  const documentPrice = getDocumentPrice(selectedDocType);
+  // Trouver le type de document sélectionné
+  const selectedDocTypeData = documentTypes.find(dt => dt._id === selectedDocType);
+  const documentPrice = selectedDocTypeData?.price || 0;
+  const processingTime = selectedDocTypeData?.processingTime || 7;
   
   // Calculate delivery fee
   const deliveryFee = selectedDeliveryMethod === 'delivery' ? 2000 : 0;
@@ -123,22 +148,50 @@ const NewRequest = () => {
       // Créer un objet FormData pour gérer les fichiers
       const formData = new FormData();
       
-      // Ajouter les données du formulaire
+      // Étape 1: Type de document
       formData.append('documentType', data.documentType);
       formData.append('commune', data.commune);
-      formData.append('fullName', data.fullName);
-      formData.append('birthDate', data.birthDate);
-      formData.append('birthPlace', data.birthPlace);
-      if (data.fatherName) formData.append('fatherName', data.fatherName);
-      if (data.motherName) formData.append('motherName', data.motherName);
+      
+      // Étape 2: Informations de l'enfant
+      formData.append('childLastName', data.childLastName);
+      formData.append('childFirstName', data.childFirstName);
+      formData.append('childBirthDate', data.childBirthDate);
+      formData.append('childBirthPlace', data.childBirthPlace);
+      formData.append('childBirthTime', data.childBirthTime);
+      formData.append('childMaternity', data.childMaternity);
+      formData.append('childGender', data.childGender);
+      
+      // Étape 3: Informations des parents
+      formData.append('fatherFullName', data.fatherFullName);
+      formData.append('fatherNationality', data.fatherNationality);
+      formData.append('fatherProfession', data.fatherProfession);
+      formData.append('fatherAddress', data.fatherAddress);
+      formData.append('motherFullName', data.motherFullName);
+      formData.append('motherNationality', data.motherNationality);
+      formData.append('motherProfession', data.motherProfession);
+      formData.append('motherAddress', data.motherAddress);
+      
+      // Étape 4: Documents
+      if (data.birthCertificate && data.birthCertificate[0]) {
+        formData.append('birthCertificate', data.birthCertificate[0]);
+      }
+      if (data.fatherIdCard && data.fatherIdCard[0]) {
+        formData.append('fatherIdCard', data.fatherIdCard[0]);
+      }
+      if (data.motherIdCard && data.motherIdCard[0]) {
+        formData.append('motherIdCard', data.motherIdCard[0]);
+      }
+      if (data.familyBook && data.familyBook[0]) {
+        formData.append('familyBook', data.familyBook[0]);
+      }
+      if (data.marriageCertificate && data.marriageCertificate[0]) {
+        formData.append('marriageCertificate', data.marriageCertificate[0]);
+      }
+      
+      // Étape 5: Mode de réception
       formData.append('deliveryMethod', data.deliveryMethod);
       if (data.address) formData.append('address', data.address);
       if (data.phoneNumber) formData.append('phoneNumber', data.phoneNumber);
-      
-      // Ajouter le fichier d'identité s'il existe
-      if (data.identityDocument && data.identityDocument[0]) {
-        formData.append('identityDocument', data.identityDocument[0]);
-      }
 
       // Ajouter le prix
       formData.append('price', totalPrice.toString());
@@ -212,7 +265,7 @@ const NewRequest = () => {
             }`}>
               2
             </div>
-            <span className="mt-2 text-xs font-medium">Informations</span>
+            <span className="mt-2 text-xs font-medium">Enfant</span>
           </div>
           
           <div className="flex flex-col items-center">
@@ -221,7 +274,7 @@ const NewRequest = () => {
             }`}>
               3
             </div>
-            <span className="mt-2 text-xs font-medium">Documents</span>
+            <span className="mt-2 text-xs font-medium">Parents</span>
           </div>
           
           <div className="flex flex-col items-center">
@@ -229,6 +282,15 @@ const NewRequest = () => {
               currentStep >= 4 ? 'border-primary-500 bg-primary-500 text-white' : 'border-neutral-300 bg-white text-neutral-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
             }`}>
               4
+            </div>
+            <span className="mt-2 text-xs font-medium">Documents</span>
+          </div>
+          
+          <div className="flex flex-col items-center">
+            <div className={`relative flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+              currentStep >= 5 ? 'border-primary-500 bg-primary-500 text-white' : 'border-neutral-300 bg-white text-neutral-500 dark:border-neutral-600 dark:bg-neutral-800 dark:text-neutral-400'
+            }`}>
+              5
             </div>
             <span className="mt-2 text-xs font-medium">Réception</span>
           </div>
@@ -241,21 +303,48 @@ const NewRequest = () => {
             <div className="space-y-6">
               <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Type de document</h2>
               
-              <Controller
-                name="documentType"
-                control={control}
-                rules={{ required: 'Veuillez sélectionner un type de document' }}
-                render={({ field }) => (
-                  <Select
-                    id="documentType"
-                    label="Type de document"
-                    icon={<FileText size={18} />}
-                    error={errors.documentType?.message}
-                    options={documentTypes}
-                    {...field}
-                  />
-                )}
-              />
+              {loadingDocTypes ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader className="h-8 w-8 animate-spin text-primary-500" />
+                  <span className="ml-3 text-neutral-600 dark:text-neutral-400">Chargement des types de documents...</span>
+                </div>
+              ) : docTypesError ? (
+                <div className="rounded-lg bg-error-50 p-4 text-sm text-error-600 dark:bg-error-900/30 dark:text-error-400">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className="h-5 w-5" />
+                    {docTypesError}
+                  </div>
+                </div>
+              ) : documentTypes.length === 0 ? (
+                <div className="rounded-lg bg-warning-50 p-4 text-sm text-warning-600 dark:bg-warning-900/30 dark:text-warning-400">
+                  <div className="flex items-center gap-2">
+                    <Info className="h-5 w-5" />
+                    <div>
+                      <p className="font-medium">Aucun type de document disponible</p>
+                      <p className="mt-1">Les types de documents n'ont pas encore été configurés par l'administrateur. Veuillez réessayer plus tard.</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <Controller
+                  name="documentType"
+                  control={control}
+                  rules={{ required: 'Veuillez sélectionner un type de document' }}
+                  render={({ field }) => (
+                    <Select
+                      id="documentType"
+                      label="Type de document"
+                      icon={<FileText size={18} />}
+                      error={errors.documentType?.message}
+                      options={documentTypes.map(dt => ({
+                        value: dt._id,
+                        label: `${dt.name} - ${dt.price} FCFA`
+                      }))}
+                      {...field}
+                    />
+                  )}
+                />
+              )}
               
               <Controller
                 name="commune"
@@ -273,7 +362,7 @@ const NewRequest = () => {
                 )}
               />
               
-              {selectedDocType && (
+              {selectedDocType && selectedDocTypeData && (
                 <div className="rounded-md bg-primary-50 p-4 dark:bg-primary-900/20">
                   <div className="flex">
                     <div className="flex-shrink-0">
@@ -282,8 +371,23 @@ const NewRequest = () => {
                     <div className="ml-3">
                       <h3 className="text-sm font-medium text-primary-800 dark:text-primary-300">Informations sur le document</h3>
                       <div className="mt-2 text-sm text-primary-700 dark:text-primary-400">
-                        <p>Tarif: {documentPrice} FCFA</p>
-                        <p>Délai: 2 à 5 jours ouvrables</p>
+                        <p><strong>Type:</strong> {selectedDocTypeData.name}</p>
+                        <p><strong>Catégorie:</strong> {selectedDocTypeData.category}</p>
+                        <p><strong>Tarif:</strong> {documentPrice} FCFA</p>
+                        <p><strong>Délai:</strong> {processingTime} jour{processingTime > 1 ? 's' : ''} ouvrable{processingTime > 1 ? 's' : ''}</p>
+                        {selectedDocTypeData.description && (
+                          <p className="mt-2"><strong>Description:</strong> {selectedDocTypeData.description}</p>
+                        )}
+                        {selectedDocTypeData.requiredFields && selectedDocTypeData.requiredFields.length > 0 && (
+                          <div className="mt-2">
+                            <p className="font-medium">Champs requis:</p>
+                            <ul className="ml-4 mt-1 list-disc">
+                              {selectedDocTypeData.requiredFields.map((field, index) => (
+                                <li key={index}>{field}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -293,7 +397,7 @@ const NewRequest = () => {
               <div className="flex justify-end">
                 <Button 
                   onClick={nextStep}
-                  disabled={!selectedDocType || !watch('commune')}
+                  disabled={!selectedDocType || !watch('commune') || documentTypes.length === 0}
                 >
                   Étape suivante
                 </Button>
@@ -303,47 +407,101 @@ const NewRequest = () => {
           
           {currentStep === 2 && (
             <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Informations personnelles</h2>
-              
-              <Input
-                id="fullName"
-                label="Nom complet"
-                placeholder="Entrez votre nom complet"
-                icon={<User size={18} />}
-                error={errors.fullName?.message}
-                {...register('fullName', { required: 'Le nom complet est requis' })}
-              />
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Informations de l'enfant</h2>
               
               <div className="grid gap-4 sm:grid-cols-2">
                 <Input
-                  id="birthDate"
-                  type="date"
-                  label="Date de naissance"
-                  error={errors.birthDate?.message}
-                  {...register('birthDate', { required: 'La date de naissance est requise' })}
+                  id="childLastName"
+                  label="Nom de famille"
+                  placeholder="Nom de l'enfant"
+                  icon={<User size={18} />}
+                  error={errors.childLastName?.message}
+                  {...register('childLastName', { required: 'Le nom de famille est requis' })}
                 />
                 
                 <Input
-                  id="birthPlace"
-                  label="Lieu de naissance"
-                  placeholder="Ville, Pays"
-                  error={errors.birthPlace?.message}
-                  {...register('birthPlace', { required: 'Le lieu de naissance est requis' })}
+                  id="childFirstName"
+                  label="Prénom(s)"
+                  placeholder="Prénom(s) de l'enfant"
+                  icon={<User size={18} />}
+                  error={errors.childFirstName?.message}
+                  {...register('childFirstName', { required: 'Le prénom est requis' })}
                 />
               </div>
               
-              <Input
-                id="fatherName"
-                label="Nom du père"
-                placeholder="Nom complet du père"
-                {...register('fatherName')}
-              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  id="childBirthDate"
+                  type="date"
+                  label="Date de naissance"
+                  error={errors.childBirthDate?.message}
+                  {...register('childBirthDate', { required: 'La date de naissance est requise' })}
+                />
+                
+                <Input
+                  id="childBirthTime"
+                  type="time"
+                  label="Heure de naissance"
+                  error={errors.childBirthTime?.message}
+                  {...register('childBirthTime', { required: 'L\'heure de naissance est requise' })}
+                />
+              </div>
               
-              <Input
-                id="motherName"
-                label="Nom de la mère"
-                placeholder="Nom complet de la mère"
-                {...register('motherName')}
+              <div className="grid gap-4 sm:grid-cols-2">
+                <Input
+                  id="childBirthPlace"
+                  label="Lieu de naissance"
+                  placeholder="Ville, Pays"
+                  icon={<MapPin size={18} />}
+                  error={errors.childBirthPlace?.message}
+                  {...register('childBirthPlace', { required: 'Le lieu de naissance est requis' })}
+                />
+                
+                <Input
+                  id="childMaternity"
+                  label="Maternité de naissance"
+                  placeholder="Nom de la maternité"
+                  error={errors.childMaternity?.message}
+                  {...register('childMaternity', { required: 'La maternité est requise' })}
+                />
+              </div>
+              
+              <Controller
+                name="childGender"
+                control={control}
+                rules={{ required: 'Le sexe est requis' }}
+                render={({ field }) => (
+                  <div className="space-y-2">
+                    <label className="block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                      Sexe
+                    </label>
+                    <div className="flex gap-4">
+                      <label className="flex cursor-pointer items-center">
+                        <input
+                          type="radio"
+                          value="M"
+                          checked={field.value === 'M'}
+                          onChange={() => field.onChange('M')}
+                          className="h-4 w-4 border-neutral-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <span className="ml-2 text-sm text-neutral-700 dark:text-neutral-300">Masculin</span>
+                      </label>
+                      <label className="flex cursor-pointer items-center">
+                        <input
+                          type="radio"
+                          value="F"
+                          checked={field.value === 'F'}
+                          onChange={() => field.onChange('F')}
+                          className="h-4 w-4 border-neutral-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <span className="ml-2 text-sm text-neutral-700 dark:text-neutral-300">Féminin</span>
+                      </label>
+                    </div>
+                    {errors.childGender?.message && (
+                      <p className="text-sm text-error-500">{errors.childGender.message}</p>
+                    )}
+                  </div>
+                )}
               />
               
               <div className="flex justify-between">
@@ -359,60 +517,91 @@ const NewRequest = () => {
           
           {currentStep === 3 && (
             <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Pièces justificatives</h2>
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Informations des parents</h2>
               
-              <div>
-                <label className="mb-1.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
-                  Pièce d'identité
-                </label>
-                <div className="mt-1 flex justify-center rounded-md border-2 border-dashed border-neutral-300 px-6 pt-5 pb-6 dark:border-neutral-700">
-                  <div className="space-y-1 text-center">
-                    <Upload className="mx-auto h-12 w-12 text-neutral-400" />
-                    <div className="flex text-sm text-neutral-600 dark:text-neutral-400">
-                      <label
-                        htmlFor="identityDocument"
-                        className="relative cursor-pointer rounded-md bg-white font-medium text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 hover:text-primary-400 dark:bg-transparent"
-                      >
-                        <span>Téléverser un fichier</span>
-                        <input
-                          id="identityDocument"
-                          type="file"
-                          className="sr-only"
-                          accept=".jpg,.jpeg,.png,.pdf"
-                          {...register('identityDocument', { required: 'Une pièce d\'identité est requise' })}
-                        />
-                      </label>
-                      <p className="pl-1">ou glisser-déposer</p>
-                    </div>
-                    <p className="text-xs text-neutral-500">
-                      PNG, JPG ou PDF jusqu'à 5MB
-                    </p>
+              {/* Informations du père */}
+              <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-700">
+                <h3 className="mb-4 text-base font-medium text-neutral-900 dark:text-white">Père</h3>
+                
+                <div className="space-y-4">
+                  <Input
+                    id="fatherFullName"
+                    label="Nom et prénom(s)"
+                    placeholder="Nom complet du père"
+                    icon={<User size={18} />}
+                    error={errors.fatherFullName?.message}
+                    {...register('fatherFullName', { required: 'Le nom du père est requis' })}
+                  />
+                  
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      id="fatherNationality"
+                      label="Nationalité"
+                      placeholder="Ex: Ivoirienne"
+                      error={errors.fatherNationality?.message}
+                      {...register('fatherNationality', { required: 'La nationalité est requise' })}
+                    />
+                    
+                    <Input
+                      id="fatherProfession"
+                      label="Profession"
+                      placeholder="Ex: Enseignant"
+                      error={errors.fatherProfession?.message}
+                      {...register('fatherProfession', { required: 'La profession est requise' })}
+                    />
                   </div>
+                  
+                  <Input
+                    id="fatherAddress"
+                    label="Domicile"
+                    placeholder="Adresse complète"
+                    icon={<MapPin size={18} />}
+                    error={errors.fatherAddress?.message}
+                    {...register('fatherAddress', { required: 'Le domicile est requis' })}
+                  />
                 </div>
-                {errors.identityDocument?.message && (
-                  <p className="mt-1.5 text-sm text-error-500">{errors.identityDocument.message}</p>
-                )}
               </div>
               
-              <div className="rounded-md bg-primary-50 p-4 dark:bg-primary-900/20">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <Info className="h-5 w-5 text-primary-500" aria-hidden="true" />
+              {/* Informations de la mère */}
+              <div className="rounded-lg border border-neutral-200 p-4 dark:border-neutral-700">
+                <h3 className="mb-4 text-base font-medium text-neutral-900 dark:text-white">Mère</h3>
+                
+                <div className="space-y-4">
+                  <Input
+                    id="motherFullName"
+                    label="Nom et prénom(s)"
+                    placeholder="Nom complet de la mère"
+                    icon={<User size={18} />}
+                    error={errors.motherFullName?.message}
+                    {...register('motherFullName', { required: 'Le nom de la mère est requis' })}
+                  />
+                  
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <Input
+                      id="motherNationality"
+                      label="Nationalité"
+                      placeholder="Ex: Ivoirienne"
+                      error={errors.motherNationality?.message}
+                      {...register('motherNationality', { required: 'La nationalité est requise' })}
+                    />
+                    
+                    <Input
+                      id="motherProfession"
+                      label="Profession"
+                      placeholder="Ex: Commerçante"
+                      error={errors.motherProfession?.message}
+                      {...register('motherProfession', { required: 'La profession est requise' })}
+                    />
                   </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-primary-800 dark:text-primary-300">Documents requis</h3>
-                    <div className="mt-2 text-sm text-primary-700 dark:text-primary-400">
-                      <ul className="list-inside list-disc space-y-1">
-                        <li>Carte Nationale d'Identité (recto-verso) ou Passeport</li>
-                        {selectedDocType === 'birth_certificate' && (
-                          <li>Ancien acte de naissance (si demande de copie)</li>
-                        )}
-                        {selectedDocType === 'marriage_certificate' && (
-                          <li>Livret de famille ou ancien certificat de mariage</li>
-                        )}
-                      </ul>
-                    </div>
-                  </div>
+                  
+                  <Input
+                    id="motherAddress"
+                    label="Domicile"
+                    placeholder="Adresse complète"
+                    icon={<MapPin size={18} />}
+                    error={errors.motherAddress?.message}
+                    {...register('motherAddress', { required: 'Le domicile est requis' })}
+                  />
                 </div>
               </div>
               
@@ -429,7 +618,337 @@ const NewRequest = () => {
           
           {currentStep === 4 && (
             <div className="space-y-6">
-              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Mode de réception</h2>
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Documents à fournir</h2>
+              
+              <div className="rounded-md bg-primary-50 p-4 dark:bg-primary-900/20">
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <Info className="h-5 w-5 text-primary-500" aria-hidden="true" />
+                  </div>
+                  <div className="ml-3">
+                    <h3 className="text-sm font-medium text-primary-800 dark:text-primary-300">Documents requis</h3>
+                    <p className="mt-1 text-sm text-primary-700 dark:text-primary-400">
+                      Veuillez fournir les documents suivants au format PDF, JPG ou PNG (max 5MB par fichier)
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Certificat de naissance */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Certificat de naissance <span className="text-error-500">*</span>
+                </label>
+                <div className={`mt-1 flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors ${
+                  watch('birthCertificate')?.[0] 
+                    ? 'border-success-500 bg-success-50 dark:border-success-500 dark:bg-success-900/20' 
+                    : 'border-neutral-300 dark:border-neutral-700'
+                }`}>
+                  <div className="space-y-1 text-center">
+                    {watch('birthCertificate')?.[0] ? (
+                      <>
+                        <CheckCircle className="mx-auto h-12 w-12 text-success-500" />
+                        <div className="flex items-center justify-center gap-2 text-sm text-success-700 dark:text-success-400">
+                          <FileText className="h-4 w-4" />
+                          <span className="font-medium">{watch('birthCertificate')?.[0]?.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const input = document.getElementById('birthCertificate') as HTMLInputElement;
+                              if (input) input.value = '';
+                              // Trigger re-render
+                              window.dispatchEvent(new Event('input'));
+                            }}
+                            className="ml-2 text-error-500 hover:text-error-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-success-600 dark:text-success-400">
+                          Fichier téléversé avec succès
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mx-auto h-12 w-12 text-neutral-400" />
+                        <div className="flex text-sm text-neutral-600 dark:text-neutral-400">
+                          <label
+                            htmlFor="birthCertificate"
+                            className="relative cursor-pointer rounded-md bg-white font-medium text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 hover:text-primary-400 dark:bg-transparent"
+                          >
+                            <span>Téléverser un fichier</span>
+                            <input
+                              id="birthCertificate"
+                              type="file"
+                              className="sr-only"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              {...register('birthCertificate', { required: 'Le certificat de naissance est requis' })}
+                            />
+                          </label>
+                          <p className="pl-1">ou glisser-déposer</p>
+                        </div>
+                        <p className="text-xs text-neutral-500">PNG, JPG ou PDF jusqu'à 5MB</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {errors.birthCertificate?.message && (
+                  <p className="mt-1.5 text-sm text-error-500">{errors.birthCertificate.message}</p>
+                )}
+              </div>
+              
+              {/* Pièce d'identité du père */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Pièce d'identité du père <span className="text-error-500">*</span>
+                </label>
+                <div className={`mt-1 flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors ${
+                  watch('fatherIdCard')?.[0] 
+                    ? 'border-success-500 bg-success-50 dark:border-success-500 dark:bg-success-900/20' 
+                    : 'border-neutral-300 dark:border-neutral-700'
+                }`}>
+                  <div className="space-y-1 text-center">
+                    {watch('fatherIdCard')?.[0] ? (
+                      <>
+                        <CheckCircle className="mx-auto h-12 w-12 text-success-500" />
+                        <div className="flex items-center justify-center gap-2 text-sm text-success-700 dark:text-success-400">
+                          <FileText className="h-4 w-4" />
+                          <span className="font-medium">{watch('fatherIdCard')?.[0]?.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const input = document.getElementById('fatherIdCard') as HTMLInputElement;
+                              if (input) input.value = '';
+                            }}
+                            className="ml-2 text-error-500 hover:text-error-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-success-600 dark:text-success-400">
+                          Fichier téléversé avec succès
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mx-auto h-12 w-12 text-neutral-400" />
+                        <div className="flex text-sm text-neutral-600 dark:text-neutral-400">
+                          <label
+                            htmlFor="fatherIdCard"
+                            className="relative cursor-pointer rounded-md bg-white font-medium text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 hover:text-primary-400 dark:bg-transparent"
+                          >
+                            <span>Téléverser un fichier</span>
+                            <input
+                              id="fatherIdCard"
+                              type="file"
+                              className="sr-only"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              {...register('fatherIdCard', { required: 'La pièce d\'identité du père est requise' })}
+                            />
+                          </label>
+                          <p className="pl-1">ou glisser-déposer</p>
+                        </div>
+                        <p className="text-xs text-neutral-500">PNG, JPG ou PDF jusqu'à 5MB</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {errors.fatherIdCard?.message && (
+                  <p className="mt-1.5 text-sm text-error-500">{errors.fatherIdCard.message}</p>
+                )}
+              </div>
+              
+              {/* Pièce d'identité de la mère */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Pièce d'identité de la mère <span className="text-error-500">*</span>
+                </label>
+                <div className={`mt-1 flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors ${
+                  watch('motherIdCard')?.[0] 
+                    ? 'border-success-500 bg-success-50 dark:border-success-500 dark:bg-success-900/20' 
+                    : 'border-neutral-300 dark:border-neutral-700'
+                }`}>
+                  <div className="space-y-1 text-center">
+                    {watch('motherIdCard')?.[0] ? (
+                      <>
+                        <CheckCircle className="mx-auto h-12 w-12 text-success-500" />
+                        <div className="flex items-center justify-center gap-2 text-sm text-success-700 dark:text-success-400">
+                          <FileText className="h-4 w-4" />
+                          <span className="font-medium">{watch('motherIdCard')?.[0]?.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const input = document.getElementById('motherIdCard') as HTMLInputElement;
+                              if (input) input.value = '';
+                            }}
+                            className="ml-2 text-error-500 hover:text-error-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-success-600 dark:text-success-400">
+                          Fichier téléversé avec succès
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mx-auto h-12 w-12 text-neutral-400" />
+                        <div className="flex text-sm text-neutral-600 dark:text-neutral-400">
+                          <label
+                            htmlFor="motherIdCard"
+                            className="relative cursor-pointer rounded-md bg-white font-medium text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 hover:text-primary-400 dark:bg-transparent"
+                          >
+                            <span>Téléverser un fichier</span>
+                            <input
+                              id="motherIdCard"
+                              type="file"
+                              className="sr-only"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              {...register('motherIdCard', { required: 'La pièce d\'identité de la mère est requise' })}
+                            />
+                          </label>
+                          <p className="pl-1">ou glisser-déposer</p>
+                        </div>
+                        <p className="text-xs text-neutral-500">PNG, JPG ou PDF jusqu'à 5MB</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+                {errors.motherIdCard?.message && (
+                  <p className="mt-1.5 text-sm text-error-500">{errors.motherIdCard.message}</p>
+                )}
+              </div>
+              
+              {/* Livret de famille (optionnel) */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Livret de famille <span className="text-neutral-500">(optionnel)</span>
+                </label>
+                <div className={`mt-1 flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors ${
+                  watch('familyBook')?.[0] 
+                    ? 'border-success-500 bg-success-50 dark:border-success-500 dark:bg-success-900/20' 
+                    : 'border-neutral-300 dark:border-neutral-700'
+                }`}>
+                  <div className="space-y-1 text-center">
+                    {watch('familyBook')?.[0] ? (
+                      <>
+                        <CheckCircle className="mx-auto h-12 w-12 text-success-500" />
+                        <div className="flex items-center justify-center gap-2 text-sm text-success-700 dark:text-success-400">
+                          <FileText className="h-4 w-4" />
+                          <span className="font-medium">{watch('familyBook')?.[0]?.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const input = document.getElementById('familyBook') as HTMLInputElement;
+                              if (input) input.value = '';
+                            }}
+                            className="ml-2 text-error-500 hover:text-error-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-success-600 dark:text-success-400">
+                          Fichier téléversé avec succès
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mx-auto h-12 w-12 text-neutral-400" />
+                        <div className="flex text-sm text-neutral-600 dark:text-neutral-400">
+                          <label
+                            htmlFor="familyBook"
+                            className="relative cursor-pointer rounded-md bg-white font-medium text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 hover:text-primary-400 dark:bg-transparent"
+                          >
+                            <span>Téléverser un fichier</span>
+                            <input
+                              id="familyBook"
+                              type="file"
+                              className="sr-only"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              {...register('familyBook')}
+                            />
+                          </label>
+                          <p className="pl-1">ou glisser-déposer</p>
+                        </div>
+                        <p className="text-xs text-neutral-500">PNG, JPG ou PDF jusqu'à 5MB</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Acte de mariage (optionnel) */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-neutral-700 dark:text-neutral-300">
+                  Acte de mariage <span className="text-neutral-500">(optionnel)</span>
+                </label>
+                <div className={`mt-1 flex justify-center rounded-md border-2 border-dashed px-6 pt-5 pb-6 transition-colors ${
+                  watch('marriageCertificate')?.[0] 
+                    ? 'border-success-500 bg-success-50 dark:border-success-500 dark:bg-success-900/20' 
+                    : 'border-neutral-300 dark:border-neutral-700'
+                }`}>
+                  <div className="space-y-1 text-center">
+                    {watch('marriageCertificate')?.[0] ? (
+                      <>
+                        <CheckCircle className="mx-auto h-12 w-12 text-success-500" />
+                        <div className="flex items-center justify-center gap-2 text-sm text-success-700 dark:text-success-400">
+                          <FileText className="h-4 w-4" />
+                          <span className="font-medium">{watch('marriageCertificate')?.[0]?.name}</span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const input = document.getElementById('marriageCertificate') as HTMLInputElement;
+                              if (input) input.value = '';
+                            }}
+                            className="ml-2 text-error-500 hover:text-error-700"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
+                        <p className="text-xs text-success-600 dark:text-success-400">
+                          Fichier téléversé avec succès
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="mx-auto h-12 w-12 text-neutral-400" />
+                        <div className="flex text-sm text-neutral-600 dark:text-neutral-400">
+                          <label
+                            htmlFor="marriageCertificate"
+                            className="relative cursor-pointer rounded-md bg-white font-medium text-primary-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-primary-500 focus-within:ring-offset-2 hover:text-primary-400 dark:bg-transparent"
+                          >
+                            <span>Téléverser un fichier</span>
+                            <input
+                              id="marriageCertificate"
+                              type="file"
+                              className="sr-only"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              {...register('marriageCertificate')}
+                            />
+                          </label>
+                          <p className="pl-1">ou glisser-déposer</p>
+                        </div>
+                        <p className="text-xs text-neutral-500">PNG, JPG ou PDF jusqu'à 5MB</p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={prevStep}>
+                  Retour
+                </Button>
+                <Button onClick={nextStep}>
+                  Étape suivante
+                </Button>
+              </div>
+            </div>
+          )}
+          
+          {currentStep === 5 && (
+            <div className="space-y-6">
+              <h2 className="text-lg font-semibold text-neutral-900 dark:text-white">Mode de réception et récapitulatif</h2>
               
               <Controller
                 name="deliveryMethod"
@@ -516,7 +1035,7 @@ const NewRequest = () => {
                   <div className="flex justify-between">
                     <span className="text-neutral-600 dark:text-neutral-400">Document:</span>
                     <span className="font-medium text-neutral-900 dark:text-white">
-                      {documentTypes.find(dt => dt.value === selectedDocType)?.label}
+                      {selectedDocTypeData?.name || 'Non sélectionné'}
                     </span>
                   </div>
                   

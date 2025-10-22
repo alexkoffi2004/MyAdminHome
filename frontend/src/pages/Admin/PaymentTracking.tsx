@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { 
   Search,
-  Filter,
   Download,
   CheckCircle,
   XCircle,
@@ -10,73 +9,52 @@ import {
 } from 'lucide-react';
 import { Card } from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
-import { useAuth } from '../../contexts/AuthContext';
+import paymentService, { Payment } from '../../services/paymentService';
 
-interface Payment {
-  id: string;
-  requestId: string;
-  amount: number;
-  status: 'pending' | 'completed' | 'failed';
-  date: string;
-  method: 'card' | 'cash' | 'transfer';
-  reference: string;
-}
-
-const mockPayments: Payment[] = [
-  {
-    id: 'PAY-001',
-    requestId: 'REQ-2024-001',
-    amount: 5000,
-    status: 'completed',
-    date: '2024-03-20 10:30',
-    method: 'card',
-    reference: 'REF-123456',
-  },
-  {
-    id: 'PAY-002',
-    requestId: 'REQ-2024-002',
-    amount: 3000,
-    status: 'pending',
-    date: '2024-03-20 09:15',
-    method: 'cash',
-    reference: 'REF-123457',
-  },
-  {
-    id: 'PAY-003',
-    requestId: 'REQ-2024-003',
-    amount: 7500,
-    status: 'failed',
-    date: '2024-03-19 16:45',
-    method: 'transfer',
-    reference: 'REF-123458',
-  },
-];
+const formatDate = (dateString: string): string => {
+  const date = new Date(dateString);
+  return date.toLocaleString('fr-FR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+};
 
 const PaymentTracking = () => {
-  const { user } = useAuth();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<Payment['status'] | 'all'>('all');
 
-  useEffect(() => {
-    setTimeout(() => {
-      setPayments(mockPayments);
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      const data = await paymentService.getAll({
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        search: searchTerm || undefined
+      });
+      setPayments(data);
+    } catch (err: any) {
+      console.error('Error fetching payments:', err);
+    } finally {
       setLoading(false);
-    }, 800);
-  }, []);
+    }
+  };
 
-  const filteredPayments = payments
-    .filter(payment => {
-      const matchesSearch = 
-        payment.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.requestId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        payment.reference.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
-      
-      return matchesSearch && matchesStatus;
-    });
+  useEffect(() => {
+    fetchPayments();
+  }, [statusFilter]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchPayments();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const filteredPayments = payments;
 
   const getStatusBadge = (status: Payment['status']) => {
     const statusConfig = {
@@ -203,11 +181,14 @@ const PaymentTracking = () => {
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
                       <div className="flex items-center gap-1">
                         <DollarSign className="h-3 w-3" />
-                        {payment.method === 'card' ? 'Carte' : payment.method === 'cash' ? 'Espèces' : 'Virement'}
+                        {payment.method === 'card' ? 'Carte' : 
+                         payment.method === 'cash' ? 'Espèces' : 
+                         payment.method === 'mobile_money' ? 'Mobile Money' :
+                         payment.method === 'bank_transfer' ? 'Virement bancaire' : 'Virement'}
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
-                      {payment.date}
+                      {formatDate(payment.date)}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
                       {payment.reference}

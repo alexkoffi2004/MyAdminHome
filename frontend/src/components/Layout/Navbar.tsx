@@ -1,16 +1,18 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Bell, Menu, X, Moon, Sun } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import UserDropdown from './UserDropdown';
 import NotificationsDropdown from './NotificationsDropdown';
+import notificationService from '../../services/notificationService';
 
 const Navbar = () => {
   const { user } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const toggleMobileMenu = () => {
     setIsMobileMenuOpen(prev => !prev);
@@ -20,6 +22,24 @@ const Navbar = () => {
     setShowNotifications(prev => !prev);
     // Close other dropdowns if open
   };
+
+  useEffect(() => {
+    const fetchUnreadCount = async () => {
+      try {
+        const count = await notificationService.getUnreadCount();
+        setUnreadCount(count);
+      } catch (error) {
+        console.error('Error fetching unread count:', error);
+      }
+    };
+
+    fetchUnreadCount();
+
+    // Rafraîchir toutes les 30 secondes
+    const interval = setInterval(fetchUnreadCount, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <nav className="bg-white px-4 py-3 shadow-sm dark:bg-neutral-800 md:px-6">
@@ -61,7 +81,11 @@ const Navbar = () => {
               aria-label="Notifications"
             >
               <Bell size={20} />
-              <span className="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary-500"></span>
+              {unreadCount > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-error-500 text-xs font-medium text-white">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </button>
             {showNotifications && <NotificationsDropdown />}
           </div>

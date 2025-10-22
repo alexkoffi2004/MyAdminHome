@@ -8,7 +8,9 @@ import {
   Phone,
   CreditCard,
   Download,
-  ArrowLeft
+  ArrowLeft,
+  FileText,
+  Eye
 } from 'lucide-react';
 import { Card } from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
@@ -93,11 +95,12 @@ const validateAndTransformData = (response: any): RequestDetails => {
   };
 
   // Validation du statut de paiement
-  const validatePaymentStatus = (status: string): 'pending' | 'paid' | 'failed' => {
+  const validatePaymentStatus = (status: string): 'pending' | 'paid' | 'completed' | 'failed' => {
     switch (status) {
       case 'paid':
-      case 'completed':
         return 'paid';
+      case 'completed':
+        return 'completed';
       case 'failed':
         return 'failed';
       default:
@@ -115,16 +118,35 @@ const validateAndTransformData = (response: any): RequestDetails => {
     documentUrl: data.documentUrl,
     price: data.price || 0,
     details: {
-      fullName: data.details?.fullName || 'Non spécifié',
-      birthDate: parseDate(data.details?.birthDate, 'birthDate'),
-      birthPlace: data.details?.birthPlace || 'Non spécifié',
-      fatherName: data.details?.fatherName || 'Non spécifié',
-      motherName: data.details?.motherName || 'Non spécifié',
+      // Anciennes données (compatibilité)
+      fullName: data.details?.fullName,
+      birthDate: data.details?.birthDate ? parseDate(data.details.birthDate, 'birthDate') : undefined,
+      birthPlace: data.details?.birthPlace,
+      fatherName: data.details?.fatherName,
+      motherName: data.details?.motherName,
+      // Nouvelles données - Enfant
+      childLastName: data.details?.childLastName,
+      childFirstName: data.details?.childFirstName,
+      childBirthDate: data.details?.childBirthDate ? parseDate(data.details.childBirthDate, 'childBirthDate') : undefined,
+      childBirthTime: data.details?.childBirthTime,
+      childMaternity: data.details?.childMaternity,
+      childGender: data.details?.childGender,
+      // Nouvelles données - Parents
+      fatherFullName: data.details?.fatherFullName,
+      fatherNationality: data.details?.fatherNationality,
+      fatherProfession: data.details?.fatherProfession,
+      fatherAddress: data.details?.fatherAddress,
+      motherFullName: data.details?.motherFullName,
+      motherNationality: data.details?.motherNationality,
+      motherProfession: data.details?.motherProfession,
+      motherAddress: data.details?.motherAddress,
+      // Autres
       commune: data.details?.commune || 'Non spécifié',
       deliveryMethod: data.details?.deliveryMethod === 'delivery' ? 'delivery' : 'download',
-      phoneNumber: data.details?.phoneNumber || 'Non spécifié',
-      address: data.details?.address || 'Non spécifié'
+      phoneNumber: data.details?.phoneNumber,
+      address: data.details?.address
     },
+    documents: data.documents || {},
     timeline: Array.isArray(data.timeline) ? data.timeline.map((event: any, index: number) => ({
       id: event.id || index + 1,
       status: getStatusBadge(event.status),
@@ -249,10 +271,16 @@ const RequestDetail = () => {
               </div>
               <div className="flex flex-col items-end gap-2">
                 <RequestStatusBadge status={getStatusBadge(request.status)} />
-                {request.payment.status === 'paid' && (
+                {request.payment.status === 'completed' && (
                   <span className="inline-flex items-center rounded-full bg-success-100 px-2.5 py-0.5 text-xs font-medium text-success-800 dark:bg-success-900/30 dark:text-success-400">
                     <CreditCard className="mr-1 h-3 w-3" />
                     Paiement effectué
+                  </span>
+                )}
+                {request.payment.status === 'failed' && (
+                  <span className="inline-flex items-center rounded-full bg-error-100 px-2.5 py-0.5 text-xs font-medium text-error-800 dark:bg-error-900/30 dark:text-error-400">
+                    <CreditCard className="mr-1 h-3 w-3" />
+                    Paiement échoué
                   </span>
                 )}
                 {request.payment.status === 'pending' && request.status === 'processing' && (
@@ -265,70 +293,258 @@ const RequestDetail = () => {
             </div>
           </Card>
 
-          {/* Details */}
-          <Card title="Informations de la demande">
-            <div className="grid gap-6 sm:grid-cols-2">
-              <div>
-                <h3 className="mb-4 font-medium text-neutral-900 dark:text-white">Informations personnelles</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center">
-                    <User size={18} className="mr-2 text-neutral-500" />
-                    <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Nom complet</p>
-                      <p className="font-medium text-neutral-900 dark:text-white">{request.details.fullName}</p>
+          {/* Informations de l'enfant */}
+          {(request.details.childLastName || request.details.childFirstName) && (
+            <Card title="Informations de l'enfant">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex items-start gap-2">
+                  <User className="mt-1 h-4 w-4 text-neutral-400" />
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900 dark:text-white">Nom</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      {request.details.childLastName || 'Non spécifié'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <User className="mt-1 h-4 w-4 text-neutral-400" />
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900 dark:text-white">Prénom</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      {request.details.childFirstName || 'Non spécifié'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Calendar className="mt-1 h-4 w-4 text-neutral-400" />
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900 dark:text-white">Date de naissance</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      {request.details.childBirthDate ? format(request.details.childBirthDate, 'dd MMMM yyyy', { locale: fr }) : 'Non spécifié'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Clock className="mt-1 h-4 w-4 text-neutral-400" />
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900 dark:text-white">Heure de naissance</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      {request.details.childBirthTime || 'Non spécifié'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <MapPin className="mt-1 h-4 w-4 text-neutral-400" />
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900 dark:text-white">Maternité</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      {request.details.childMaternity || 'Non spécifié'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <User className="mt-1 h-4 w-4 text-neutral-400" />
+                  <div>
+                    <p className="text-sm font-medium text-neutral-900 dark:text-white">Sexe</p>
+                    <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                      {request.details.childGender === 'M' ? 'Masculin' : request.details.childGender === 'F' ? 'Féminin' : 'Non spécifié'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {/* Informations des parents */}
+          {(request.details.fatherFullName || request.details.motherFullName) && (
+            <Card title="Informations des parents">
+              <div className="space-y-6">
+                {/* Père */}
+                <div>
+                  <h3 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-white">Père</h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="flex items-start gap-2">
+                      <User className="mt-1 h-4 w-4 text-neutral-400" />
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Nom complet</p>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {request.details.fatherFullName || 'Non spécifié'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="mt-1 h-4 w-4 text-neutral-400" />
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Nationalité</p>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {request.details.fatherNationality || 'Non spécifié'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <User className="mt-1 h-4 w-4 text-neutral-400" />
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Profession</p>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {request.details.fatherProfession || 'Non spécifié'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="mt-1 h-4 w-4 text-neutral-400" />
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Domicile</p>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {request.details.fatherAddress || 'Non spécifié'}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center">
-                    <Calendar size={18} className="mr-2 text-neutral-500" />
-                    <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Date de naissance</p>
-                      <p className="font-medium text-neutral-900 dark:text-white">
-                        {format(request.details.birthDate, 'dd MMMM yyyy', { locale: fr })}
-                      </p>
+                </div>
+
+                {/* Mère */}
+                <div className="border-t border-neutral-200 pt-6 dark:border-neutral-700">
+                  <h3 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-white">Mère</h3>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="flex items-start gap-2">
+                      <User className="mt-1 h-4 w-4 text-neutral-400" />
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Nom complet</p>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {request.details.motherFullName || 'Non spécifié'}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center">
-                    <MapPin size={18} className="mr-2 text-neutral-500" />
-                    <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Lieu de naissance</p>
-                      <p className="font-medium text-neutral-900 dark:text-white">{request.details.birthPlace}</p>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="mt-1 h-4 w-4 text-neutral-400" />
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Nationalité</p>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {request.details.motherNationality || 'Non spécifié'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <User className="mt-1 h-4 w-4 text-neutral-400" />
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Profession</p>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {request.details.motherProfession || 'Non spécifié'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <MapPin className="mt-1 h-4 w-4 text-neutral-400" />
+                      <div>
+                        <p className="text-sm font-medium text-neutral-900 dark:text-white">Domicile</p>
+                        <p className="text-sm text-neutral-500 dark:text-neutral-400">
+                          {request.details.motherAddress || 'Non spécifié'}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
-              
-              <div>
-                <h3 className="mb-4 font-medium text-neutral-900 dark:text-white">Informations complémentaires</h3>
-                <div className="space-y-3">
-                  <div className="flex items-center">
-                    <User size={18} className="mr-2 text-neutral-500" />
-                    <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Nom du père</p>
-                      <p className="font-medium text-neutral-900 dark:text-white">{request.details.fatherName}</p>
+            </Card>
+          )}
+
+          {/* Documents fournis */}
+          {request.documents && Object.keys(request.documents).length > 0 && (
+            <Card title="Documents fournis">
+              <div className="space-y-3">
+                {request.documents.birthCertificate && (
+                  <div className="flex items-center justify-between rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary-500" />
+                      <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                        Certificat de naissance
+                      </span>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(request.documents?.birthCertificate, '_blank')}
+                    >
+                      <Eye className="mr-1 h-4 w-4" />
+                      Voir
+                    </Button>
                   </div>
-                  
-                  <div className="flex items-center">
-                    <User size={18} className="mr-2 text-neutral-500" />
-                    <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Nom de la mère</p>
-                      <p className="font-medium text-neutral-900 dark:text-white">{request.details.motherName}</p>
+                )}
+                {request.documents.fatherIdCard && (
+                  <div className="flex items-center justify-between rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary-500" />
+                      <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                        Pièce d'identité du père
+                      </span>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(request.documents?.fatherIdCard, '_blank')}
+                    >
+                      <Eye className="mr-1 h-4 w-4" />
+                      Voir
+                    </Button>
                   </div>
-                  
-                  <div className="flex items-center">
-                    <Phone size={18} className="mr-2 text-neutral-500" />
-                    <div>
-                      <p className="text-sm text-neutral-600 dark:text-neutral-400">Téléphone</p>
-                      <p className="font-medium text-neutral-900 dark:text-white">{request.details.phoneNumber}</p>
+                )}
+                {request.documents.motherIdCard && (
+                  <div className="flex items-center justify-between rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary-500" />
+                      <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                        Pièce d'identité de la mère
+                      </span>
                     </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(request.documents?.motherIdCard, '_blank')}
+                    >
+                      <Eye className="mr-1 h-4 w-4" />
+                      Voir
+                    </Button>
                   </div>
-                </div>
+                )}
+                {request.documents.familyBook && (
+                  <div className="flex items-center justify-between rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary-500" />
+                      <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                        Livret de famille
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(request.documents?.familyBook, '_blank')}
+                    >
+                      <Eye className="mr-1 h-4 w-4" />
+                      Voir
+                    </Button>
+                  </div>
+                )}
+                {request.documents.marriageCertificate && (
+                  <div className="flex items-center justify-between rounded-lg border border-neutral-200 p-3 dark:border-neutral-700">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-primary-500" />
+                      <span className="text-sm font-medium text-neutral-900 dark:text-white">
+                        Acte de mariage
+                      </span>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(request.documents?.marriageCertificate, '_blank')}
+                    >
+                      <Eye className="mr-1 h-4 w-4" />
+                      Voir
+                    </Button>
+                  </div>
+                )}
               </div>
-            </div>
-          </Card>
+            </Card>
+          )}
 
           {/* Timeline */}
           <Card title="Suivi de la demande">
@@ -407,8 +623,15 @@ const RequestDetail = () => {
               
               <div className="flex items-center justify-between">
                 <span className="text-neutral-600 dark:text-neutral-400">Statut</span>
-                <span className="inline-flex rounded-full bg-success-100 px-2 py-1 text-xs font-medium text-success-800 dark:bg-success-900/30 dark:text-success-400">
-                  Payé
+                <span className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                  request.payment.status === 'completed' 
+                    ? 'bg-success-100 text-success-800 dark:bg-success-900/30 dark:text-success-400'
+                    : request.payment.status === 'failed'
+                    ? 'bg-error-100 text-error-800 dark:bg-error-900/30 dark:text-error-400'
+                    : 'bg-warning-100 text-warning-800 dark:bg-warning-900/30 dark:text-warning-400'
+                }`}>
+                  {request.payment.status === 'completed' ? 'Payé' : 
+                   request.payment.status === 'failed' ? 'Échec' : 'En attente'}
                 </span>
               </div>
             </div>

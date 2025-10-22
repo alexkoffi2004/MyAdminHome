@@ -212,7 +212,7 @@ const AgentDashboard = () => {
                     <div className="ml-3">
                       <h3 className="text-sm font-medium text-warning-800 dark:text-warning-400">Demandes en attente</h3>
                       <div className="mt-2 text-sm text-warning-700 dark:text-warning-300">
-                        <p>{alerts.overdueRequests} demandes sont en attente depuis plus de 48h</p>
+                        <p>{alerts.overdueRequests} demande{alerts.overdueRequests > 1 ? 's' : ''} en attente depuis plus de 48h</p>
                       </div>
                     </div>
                   </div>
@@ -228,8 +228,37 @@ const AgentDashboard = () => {
                     <div className="ml-3">
                       <h3 className="text-sm font-medium text-error-800 dark:text-error-400">Demandes urgentes</h3>
                       <div className="mt-2 text-sm text-error-700 dark:text-error-300">
-                        <p>{alerts.urgentRequests} demandes urgentes en attente</p>
+                        <p>{alerts.urgentRequests} demande{alerts.urgentRequests > 1 ? 's' : ''} urgente{alerts.urgentRequests > 1 ? 's' : ''} en attente</p>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {alerts && alerts.overdueRequests === 0 && alerts.urgentRequests === 0 && (
+                <div className="rounded-md bg-success-50 p-4 dark:bg-success-900/20">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <CheckCircle className="h-5 w-5 text-success-500" aria-hidden="true" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-success-800 dark:text-success-400">Aucune alerte</h3>
+                      <div className="mt-2 text-sm text-success-700 dark:text-success-300">
+                        <p>Toutes vos demandes sont à jour. Excellent travail !</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!alerts && (
+                <div className="rounded-md bg-neutral-50 p-4 dark:bg-neutral-800">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <AlertTriangle className="h-5 w-5 text-neutral-400" aria-hidden="true" />
+                    </div>
+                    <div className="ml-3">
+                      <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-300">Chargement des alertes...</h3>
                     </div>
                   </div>
                 </div>

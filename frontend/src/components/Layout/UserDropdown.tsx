@@ -33,9 +33,9 @@ const UserDropdown = () => {
       case 'citizen':
         return '/citizen/profile';
       case 'agent':
-        return '/agent/dashboard'; // Agents don't have a dedicated profile page
+        return '/agent/dashboard'; // Agents don't have a dedicated profile page yet
       case 'admin':
-        return '/admin/dashboard'; // Admins don't have a dedicated profile page
+        return '/admin/profile';
       default:
         return '/';
     }

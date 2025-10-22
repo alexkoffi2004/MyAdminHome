@@ -7,75 +7,95 @@ import {
   FileText,
   FileType,
   Clock,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card } from '../../components/UI/Card';
 import Button from '../../components/UI/Button';
 import { useAuth } from '../../contexts/AuthContext';
+import documentTypeService, { DocumentType, CreateDocumentTypeDto } from '../../services/documentTypeService';
+import DocumentTypeModal from '../../components/Admin/DocumentTypeModal';
 
-interface DocumentType {
-  id: string;
-  name: string;
-  description: string;
-  category: 'Acte' | 'Certificat' | 'Attestation' | 'Autre';
-  requiredFields: string[];
-  lastUpdated: string;
-  status: 'active' | 'inactive';
-}
-
-const mockDocumentTypes: DocumentType[] = [
-  {
-    id: 'DOC-001',
-    name: 'Acte de naissance',
-    description: 'Document officiel attestant la naissance',
-    category: 'Acte',
-    requiredFields: ['Nom', 'Prénom', 'Date de naissance', 'Lieu de naissance'],
-    lastUpdated: '2024-03-20',
-    status: 'active',
-  },
-  {
-    id: 'DOC-002',
-    name: 'Certificat de nationalité',
-    description: 'Document attestant la nationalité',
-    category: 'Certificat',
-    requiredFields: ['Nom', 'Prénom', 'Date de naissance', 'Nationalité'],
-    lastUpdated: '2024-03-19',
-    status: 'active',
-  },
-  {
-    id: 'DOC-003',
-    name: 'Attestation de résidence',
-    description: 'Document prouvant la résidence',
-    category: 'Attestation',
-    requiredFields: ['Nom', 'Prénom', 'Adresse', 'Date de début de résidence'],
-    lastUpdated: '2024-03-18',
-    status: 'active',
-  },
-];
+const formatDate = (dateString: string): string => {
+  return new Date(dateString).toLocaleDateString('fr-FR');
+};
 
 const DocumentTypes = () => {
   const { user } = useAuth();
   const [documentTypes, setDocumentTypes] = useState<DocumentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<DocumentType['category'] | 'all'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<'Acte' | 'Certificat' | 'Attestation' | 'Autre' | 'all'>('all');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedDocType, setSelectedDocType] = useState<DocumentType | null>(null);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchDocumentTypes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await documentTypeService.getAll({
+        category: categoryFilter !== 'all' ? categoryFilter : undefined,
+        search: searchTerm || undefined
+      });
+      setDocumentTypes(data);
+    } catch (err: any) {
+      console.error('Error fetching document types:', err);
+      setError('Erreur lors du chargement des types de documents');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    setTimeout(() => {
-      setDocumentTypes(mockDocumentTypes);
-      setLoading(false);
-    }, 800);
-  }, []);
+    fetchDocumentTypes();
+  }, [categoryFilter]);
 
-  const filteredDocuments = documentTypes
-    .filter(doc => {
-      const matchesSearch = 
-        doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.description.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      const matchesCategory = categoryFilter === 'all' || doc.category === categoryFilter;
-      
-      return matchesSearch && matchesCategory;
-    });
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      fetchDocumentTypes();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  const handleOpenCreateModal = () => {
+    setSelectedDocType(null);
+    setModalMode('create');
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (docType: DocumentType) => {
+    setSelectedDocType(docType);
+    setModalMode('edit');
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedDocType(null);
+  };
+
+  const handleSubmit = async (data: CreateDocumentTypeDto) => {
+    if (modalMode === 'create') {
+      await documentTypeService.create(data);
+    } else if (selectedDocType) {
+      await documentTypeService.update(selectedDocType._id, data);
+    }
+    await fetchDocumentTypes();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer ce type de document ?')) {
+      try {
+        await documentTypeService.delete(id);
+        await fetchDocumentTypes();
+      } catch (err: any) {
+        alert(err.response?.data?.message || 'Erreur lors de la suppression');
+      }
+    }
+  };
+
+  const filteredDocuments = documentTypes;
 
   const getCategoryBadge = (category: DocumentType['category']) => {
     const categoryConfig = {
@@ -105,11 +125,20 @@ const DocumentTypes = () => {
             Gérez les types de documents et leurs champs requis
           </p>
         </div>
-        <Button>
+        <Button onClick={handleOpenCreateModal}>
           <Plus className="mr-2 h-4 w-4" />
           Nouveau type
         </Button>
       </div>
+
+      {error && (
+        <div className="rounded-lg bg-error-50 p-4 text-sm text-error-600 dark:bg-error-900/30 dark:text-error-400">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            {error}
+          </div>
+        </div>
+      )}
 
       <Card>
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -178,7 +207,7 @@ const DocumentTypes = () => {
                 </tr>
               ) : (
                 filteredDocuments.map((doc) => (
-                  <tr key={doc.id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                  <tr key={doc._id} className="hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
                     <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-neutral-900 dark:text-white">
                       {doc.name}
                     </td>
@@ -203,7 +232,7 @@ const DocumentTypes = () => {
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
                       <div className="flex items-center gap-1">
                         <Clock className="h-3 w-3" />
-                        {doc.lastUpdated}
+                        {formatDate(doc.updatedAt)}
                       </div>
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
@@ -211,14 +240,14 @@ const DocumentTypes = () => {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {}}
+                          onClick={() => handleOpenEditModal(doc)}
                         >
                           <Edit2 className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => {}}
+                          onClick={() => handleDelete(doc._id)}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -231,6 +260,14 @@ const DocumentTypes = () => {
           </table>
         </div>
       </Card>
+
+      <DocumentTypeModal
+        isOpen={isModalOpen}
+        onClose={handleCloseModal}
+        onSubmit={handleSubmit}
+        documentType={selectedDocType}
+        mode={modalMode}
+      />
     </div>
   );
 };

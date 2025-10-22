@@ -7,6 +7,9 @@ export interface UserData {
   email: string;
   role: 'admin' | 'agent' | 'citizen';
   isActive: boolean;
+  phoneNumber?: string;
+  address?: string;
+  commune?: string | { _id: string; name: string };
   lastLogin?: string;
   createdAt: string;
 }

@@ -23,12 +23,15 @@ const Dashboard = () => {
   useEffect(() => {
     const fetchStatistics = async () => {
       try {
+        console.log('🔄 Chargement des statistiques...');
         const data = await statisticsService.getCitizenStats();
+        console.log('📊 Données reçues:', data);
         setStatistics(data);
         setError(null);
       } catch (err) {
         setError("Erreur lors du chargement des statistiques");
-        console.error("Error fetching statistics:", err);
+        console.error("❌ Error fetching statistics:", err);
+        console.error("❌ Error response:", err.response?.data);
       } finally {
         setLoading(false);
       }

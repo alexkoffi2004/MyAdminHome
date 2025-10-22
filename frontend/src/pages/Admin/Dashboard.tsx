@@ -210,13 +210,13 @@ const AdminDashboard = () => {
                     {formatCurrency(payment.amount)}
                   </p>
                   <p className={`text-sm ${
-                    payment.status === 'paid' 
+                    payment.status === 'paid' || payment.status === 'success'
                       ? 'text-success-500' 
                       : payment.status === 'pending'
                       ? 'text-warning-500'
                       : 'text-error-500'
                   }`}>
-                    {payment.status === 'paid' 
+                    {payment.status === 'paid' || payment.status === 'success'
                       ? 'Payé' 
                       : payment.status === 'pending'
                       ? 'En attente'

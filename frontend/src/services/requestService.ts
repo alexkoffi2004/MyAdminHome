@@ -2,6 +2,7 @@ import api from '../config/api';
 
 export interface Request {
   _id: string;
+  reference: string;
   documentType: 'birth_certificate' | 'death_certificate' | 'birth_declaration' | 'identity_document';
   status: 'pending' | 'processing' | 'completed' | 'rejected';
   createdAt: string;
@@ -13,22 +14,52 @@ export interface Request {
 
 export interface RequestDetails {
   id: string;
-  type: string;
+  reference: string;
+  type: string | { _id: string; name: string; price: number; processingTime?: string };
   status: 'pending' | 'processing' | 'completed' | 'rejected';
   date: Date;
   lastUpdate: Date;
   documentUrl?: string;
   price: number;
   details: {
-    fullName: string;
-    birthDate: Date;
-    birthPlace: string;
-    fatherName: string;
-    motherName: string;
+    // Anciennes données (compatibilité)
+    fullName?: string;
+    birthDate?: Date;
+    birthPlace?: string;
+    fatherName?: string;
+    motherName?: string;
+    
+    // Nouvelles données - Enfant
+    childLastName?: string;
+    childFirstName?: string;
+    childBirthDate?: Date;
+    childBirthPlace?: string;
+    childBirthTime?: string;
+    childMaternity?: string;
+    childGender?: 'M' | 'F';
+    
+    // Nouvelles données - Parents
+    fatherFullName?: string;
+    fatherNationality?: string;
+    fatherProfession?: string;
+    fatherAddress?: string;
+    motherFullName?: string;
+    motherNationality?: string;
+    motherProfession?: string;
+    motherAddress?: string;
+    
+    // Autres
     commune: string;
-    deliveryMethod: 'download' | 'delivery';
-    phoneNumber: string;
+    deliveryMethod: 'download' | 'delivery' | 'pickup';
+    phoneNumber?: string;
     address?: string;
+  };
+  documents?: {
+    birthCertificate?: string;
+    fatherIdCard?: string;
+    motherIdCard?: string;
+    familyBook?: string;
+    marriageCertificate?: string;
   };
   timeline: {
     id: number;
@@ -38,7 +69,7 @@ export interface RequestDetails {
   }[];
   payment: {
     amount: number;
-    status: 'pending' | 'paid' | 'failed';
+    status: 'pending' | 'paid' | 'completed' | 'failed';
     date: Date;
     reference: string;
   };

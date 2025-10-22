@@ -16,7 +16,6 @@ import toast from 'react-hot-toast';
 
 // Types
 type RequestStatus = 'pending' | 'processing' | 'completed' | 'rejected';
-type RequestType = 'Acte de naissance' | 'Certificat de nationalité' | 'Acte de mariage' | 'Casier judiciaire';
 
 interface Request {
   _id: string;
@@ -24,7 +23,11 @@ interface Request {
     firstName: string;
     lastName: string;
   };
-  documentType: RequestType;
+  documentType: {
+    _id: string;
+    name: string;
+    price: number;
+  };
   createdAt: string;
   status: RequestStatus;
   isUrgent: boolean;
@@ -70,7 +73,7 @@ const RequestsList = () => {
       const matchesSearch = 
         request._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
         fullName.includes(searchTerm.toLowerCase()) ||
-        request.documentType.toLowerCase().includes(searchTerm.toLowerCase());
+        request.documentType.name.toLowerCase().includes(searchTerm.toLowerCase());
       
       const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
       
@@ -221,7 +224,7 @@ const RequestsList = () => {
                       {`${request.user.firstName} ${request.user.lastName}`}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
-                      {request.documentType}
+                      {request.documentType.name}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 text-sm text-neutral-500 dark:text-neutral-400">
                       {formatDate(request.createdAt)}

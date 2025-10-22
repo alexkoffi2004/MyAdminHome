@@ -12,7 +12,8 @@ import {
   CreditCard, 
   BarChart, 
   LogOut, 
-  ChevronRight
+  ChevronRight,
+  Bell
 } from 'lucide-react';
 import { useAuth, UserRole } from '../../contexts/AuthContext';
 import { cn } from '../../utils/classNames';
@@ -40,6 +41,7 @@ const Sidebar = ({ userType }: SidebarProps) => {
           { path: '/citizen/dashboard', name: 'Tableau de bord', icon: <LayoutDashboard size={20} /> },
           { path: '/citizen/new-request', name: 'Nouvelle demande', icon: <FileText size={20} /> },
           { path: '/citizen/requests', name: 'Suivi de demandes', icon: <Clock size={20} /> },
+          { path: '/citizen/notifications', name: 'Notifications', icon: <Bell size={20} /> },
           { path: '/citizen/profile', name: 'Mon profil', icon: <User size={20} /> },
         ];
       case 'agent':
@@ -55,6 +57,7 @@ const Sidebar = ({ userType }: SidebarProps) => {
           { path: '/admin/document-types', name: 'Types de documents', icon: <FileText size={20} /> },
           { path: '/admin/payments', name: 'Suivi des paiements', icon: <CreditCard size={20} /> },
           { path: '/admin/statistics', name: 'Statistiques', icon: <BarChart size={20} /> },
+          { path: '/admin/notifications', name: 'Notifications', icon: <Bell size={20} /> },
         ];
       default:
         return [];
