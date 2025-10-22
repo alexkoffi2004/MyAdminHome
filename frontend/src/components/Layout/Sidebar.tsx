@@ -8,7 +8,6 @@ import {
   Users, 
   FileCheck, 
   History, 
-  Settings, 
   CreditCard, 
   BarChart, 
   LogOut, 
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth, UserRole } from '../../contexts/AuthContext';
 import { cn } from '../../utils/classNames';
+import { useUnreadNotifications } from '../../hooks/useUnreadNotifications';
 
 interface SidebarProps {
   userType: UserRole;
@@ -27,6 +27,7 @@ const Sidebar = ({ userType }: SidebarProps) => {
   const { logout, user } = useAuth();
   const navigate = useNavigate();
   const [collapsed, setCollapsed] = useState(false);
+  const { unreadCount } = useUnreadNotifications();
   
   const handleLogout = () => {
     logout();
@@ -121,22 +122,47 @@ const Sidebar = ({ userType }: SidebarProps) => {
       {/* Navigation */}
       <div className="flex flex-1 flex-col overflow-y-auto py-4">
         <nav className="flex-1 space-y-1 px-2">
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              to={item.path}
-              className={cn(
-                "flex items-center rounded-md px-3 py-2 text-sm transition-colors",
-                pathname === item.path
-                  ? "bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
-                  : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-700",
-                collapsed ? "justify-center" : "gap-3"
-              )}
-            >
-              {item.icon}
-              {!collapsed && <span>{item.name}</span>}
-            </Link>
-          ))}
+          {navItems.map((item) => {
+            const isNotificationPage = item.name === 'Notifications';
+            const showBadge = isNotificationPage && unreadCount > 0;
+            
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                className={cn(
+                  "flex items-center rounded-md px-3 py-2 text-sm transition-colors",
+                  pathname === item.path
+                    ? "bg-primary-100 text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
+                    : "text-neutral-600 hover:bg-neutral-100 dark:text-neutral-300 dark:hover:bg-neutral-700",
+                  collapsed ? "justify-center" : "gap-3",
+                  "relative"
+                )}
+              >
+                <div className="relative">
+                  {item.icon}
+                  {showBadge && (
+                    <>
+                      {/* Badge avec animation de pulsation */}
+                      <span className="absolute -right-2 -top-2 flex h-4 w-4 items-center justify-center rounded-full bg-error-500 text-[10px] font-medium text-white animate-pulse">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                      {/* Cercle d'animation autour du badge */}
+                      <span className="absolute -right-2 -top-2 h-4 w-4 rounded-full bg-error-500 opacity-75 animate-ping"></span>
+                    </>
+                  )}
+                </div>
+                {!collapsed && (
+                  <span className="flex-1">{item.name}</span>
+                )}
+                {!collapsed && showBadge && (
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-error-500 text-xs font-medium text-white shadow-lg">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
         </nav>
       </div>
       

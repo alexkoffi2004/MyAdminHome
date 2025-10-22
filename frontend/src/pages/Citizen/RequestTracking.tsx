@@ -80,10 +80,12 @@ const RequestTracking = () => {
 
   // Filter requests based on search term and filters
   const filteredRequests = requests.filter(request => {
+    const docTypeName = typeof request.documentType === 'object' ? request.documentType.name : request.documentType;
     const matchesSearch = request._id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.documentType.toLowerCase().includes(searchTerm.toLowerCase());
+                         (request.reference && request.reference.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                         docTypeName.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
-    const matchesType = typeFilter === 'all' || request.documentType === typeFilter;
+    const matchesType = typeFilter === 'all' || docTypeName === typeFilter;
     
     return matchesSearch && matchesStatus && matchesType;
   });
@@ -191,7 +193,7 @@ const RequestTracking = () => {
                       {request._id}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-900 dark:text-white">
-                      {getDocumentTypeLabel(request.documentType)}
+                      {typeof request.documentType === 'object' ? request.documentType.name : getDocumentTypeLabel(request.documentType)}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-neutral-500 dark:text-neutral-400">
                       {format(new Date(request.createdAt), 'dd/MM/yyyy', { locale: fr })}

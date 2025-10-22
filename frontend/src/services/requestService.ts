@@ -3,12 +3,18 @@ import api from '../config/api';
 export interface Request {
   _id: string;
   reference: string;
-  documentType: 'birth_certificate' | 'death_certificate' | 'birth_declaration' | 'identity_document';
+  documentType: string | { _id: string; name: string; category: string; price: number };
   status: 'pending' | 'processing' | 'completed' | 'rejected';
   createdAt: string;
   updatedAt: string;
-  commune: {
+  commune: string | {
+    _id: string;
     name: string;
+  };
+  agent?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
   };
 }
 
