@@ -4,15 +4,15 @@ const Commune = require('../models/Commune');
 const { uploadFile } = require('../services/cloudinaryService');
 const { createPaymentIntent, savePayment } = require('../services/stripeService');
 const { generateReceipt, generateBirthCertificate } = require('../services/pdfService');
+const { generateDocument } = require('../services/documentService');
 const { assignRequestToAgent } = require('../services/agentAssignmentService');
 const asyncHandler = require('../middleware/async');
-const ErrorResponse = require('../utils/errorResponse');
 const { catchAsync } = require('../utils/errorHandler');
+const ErrorResponse = require('../utils/errorResponse');
 const cloudinary = require('cloudinary');
 const fs = require('fs');
 const notificationService = require('../services/notificationService');
 const { getIO } = require('../config/socket');
-const { generateDocument } = require('../services/documentService');
 
 // Fonction helper pour obtenir le prix des documents
 const getDocumentPrice = (documentType) => {
@@ -234,7 +234,11 @@ exports.approveRequest = async (req, res) => {
   try {
     const { anneeRegistre, numeroRegistre } = req.body;
 
-    const demande = await Request.findById(req.params.id);
+    const demande = await Request.findById(req.params.id)
+      .populate('documentType', 'name category')
+      .populate('commune', 'name')
+      .populate('user', 'firstName lastName email');
+    
     if (!demande) {
       return res.status(404).json({ success: false, message: 'Demande introuvable' });
     }
@@ -261,37 +265,52 @@ exports.approveRequest = async (req, res) => {
 
     await demande.save();
 
-    // Générer le PDF d'extrait de naissance (PDFKit) et récupérer le chemin de fichier
-const { filePath } = await generateBirthCertificate(demande);
-console.log("Chemin généré du PDF :", { filePath });
+    // Générer le PDF d'extrait de naissance avec le nouveau service
+    const document = await generateDocument(demande, req.user);
+    console.log("Document généré :", document);
 
-const uploadResult = await cloudinary.uploader.upload(filePath, {
-  folder: "extraits",
-  resource_type: "raw",
-});
+    // Upload vers Cloudinary
+    const uploadResult = await cloudinary.uploader.upload(document.filePath, {
+      folder: "extraits",
+      resource_type: "raw",
+    });
 
-console.log('uploadResult', uploadResult);
+    console.log('uploadResult', uploadResult);
 
-// Supprimer le fichier local
-try {
-  fs.unlinkSync(filePath);
-} catch (e) {
-  console.error('Erreur lors de la suppression du fichier local:', e);
-}
+    // Supprimer le fichier local
+    try {
+      fs.unlinkSync(document.filePath);
+    } catch (e) {
+      console.error('Erreur lors de la suppression du fichier local:', e);
+    }
 
-console.log('demande.documentUrl', demande.documentUrl);
+    // Mettre à jour la demande avec l'URL du document
+    demande.documentUrl = uploadResult.secure_url;
+    demande.generatedDocument = {
+      url: uploadResult.secure_url,
+      fileName: document.fileName,
+      generatedAt: new Date(),
+      generatedBy: req.user._id
+    };
+    demande.status = "completed";
+    await demande.save();
 
-demande.documentUrl = uploadResult.secure_url;
-demande.status = "completed";
-await demande.save();
+    console.log('demande.status', demande.status);
 
-console.log('demande.status', demande.status);
+    // Notifier le citoyen
+    await notificationService.createNotification({
+      user: demande.user,
+      type: 'document_generated',
+      title: 'Votre document est disponible',
+      message: 'Votre extrait de naissance a été généré et est maintenant disponible au téléchargement.',
+      request: demande._id
+    });
 
-res.status(200).json({
-  success: true,
-  message: "Demande validée et extrait généré avec succès",
-  DocumentUrl: uploadResult.secure_url,
-});
+    res.status(200).json({
+      success: true,
+      message: "Demande validée et extrait généré avec succès",
+      DocumentUrl: uploadResult.secure_url,
+    });
 
   } catch (error) {
     console.error(error);
@@ -304,7 +323,11 @@ res.status(200).json({
 // @route   GET /api/requests
 // @access  Private (Citoyen)
 exports.getRequests = catchAsync(async (req, res) => {
-  const requests = await Request.find({ user: req.user.id });
+  const requests = await Request.find({ user: req.user.id })
+    .populate('documentType', 'name category price')
+    .populate('commune', 'name')
+    .populate('agent', 'firstName lastName')
+    .sort({ createdAt: -1 });
 
   res.status(200).json({
     success: true,
