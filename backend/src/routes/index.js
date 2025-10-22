@@ -18,6 +18,9 @@ router.use('/requests', requestRoutes);
 // Routes de notification
 router.use('/notifications', notificationRoutes);
 
+// Routes des types de documents (admin - protégées) - DOIT ÊTRE AVANT /admin
+router.use('/admin/document-types', documentTypeRoutes);
+
 // Routes d'administration
 router.use('/admin', adminRoutes);
 
@@ -26,9 +29,6 @@ router.use('/citizen', citizenRoutes);
 
 // Routes d'agent
 router.use('/agent', agentRoutes);
-
-// Routes des types de documents (admin - protégées)
-router.use('/admin/document-types', documentTypeRoutes);
 
 // Routes publiques des types de documents (pour les citoyens)
 router.use('/document-types', publicDocumentTypeRoutes);
