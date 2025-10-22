@@ -20,10 +20,10 @@ exports.getCitizenStats = async (req, res) => {
     // Calculate payment statistics
     const totalPayments = requests.reduce((sum, req) => sum + (req.price || 0), 0);
     const pendingPayments = requests
-      .filter(req => req.paymentStatus === 'pending')
+      .filter(req => req.paymentStatus === 'pending' || req.payment?.status === 'pending')
       .reduce((sum, req) => sum + (req.price || 0), 0);
     const completedPayments = requests
-      .filter(req => req.paymentStatus === 'completed')
+      .filter(req => req.paymentStatus === 'completed' || req.payment?.status === 'paid')
       .reduce((sum, req) => sum + (req.price || 0), 0);
 
     // Calculate trends (comparing with last month)

@@ -4,6 +4,8 @@ const { protect, authorize } = require('../middleware/auth');
 const {
   getStats,
   getRecentPayments,
+  getAllPayments,
+  getRecentActivity,
   getUsers,
   updateUser,
   deleteUser,
@@ -27,6 +29,8 @@ router.use(authorize('admin'));
 // Routes de statistiques
 router.get('/stats', getStats);
 router.get('/payments/recent', getRecentPayments);
+router.get('/payments', getAllPayments);
+router.get('/activity/recent', getRecentActivity);
 
 // Routes de gestion des utilisateurs
 router.get('/users', getUsers);

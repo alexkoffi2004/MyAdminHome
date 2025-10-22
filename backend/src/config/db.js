@@ -13,11 +13,11 @@ const connectDB = async () => {
       dbName: 'MyAdminHome' // Forcer l'utilisation de MyAdminHome
     });
 
-    console.log('MongoDB Atlas Connected Successfully!');
+    console.log('MongoDB Atlas Connected Successfully✅!');
     console.log('Database:', conn.connection.name);
     console.log('Host:', conn.connection.host);
   } catch (error) {
-    console.error('Erreur de connexion à MongoDB Atlas:', error.message);
+    console.error('Erreur de connexion à MongoDB Atlas❌:', error.message);
     process.exit(1);
   }
 };

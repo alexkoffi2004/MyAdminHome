@@ -249,6 +249,59 @@ exports.getRecentPayments = catchAsync(async (req, res) => {
   });
 });
 
+// @desc    Obtenir tous les paiements
+// @route   GET /api/admin/payments
+// @access  Private/Admin
+exports.getAllPayments = catchAsync(async (req, res) => {
+  const { status, search } = req.query;
+  
+  let query = {};
+  
+  // Filtrer par statut de paiement
+  if (status && status !== 'all') {
+    if (status === 'completed') {
+      query['payment.status'] = { $in: ['paid', 'completed'] };
+    } else if (status === 'pending') {
+      query['payment.status'] = 'pending';
+    } else if (status === 'failed') {
+      query['payment.status'] = 'failed';
+    }
+  }
+  
+  const requests = await Request.find(query)
+    .sort({ createdAt: -1 })
+    .populate('user', 'firstName lastName')
+    .select('reference _id user price payment createdAt updatedAt');
+  
+  let payments = requests.map(request => ({
+    id: request._id,
+    requestId: request.reference || request._id,
+    amount: request.payment?.amount || request.price || 0,
+    status: request.payment?.status === 'paid' || request.payment?.status === 'completed' ? 'completed' : 
+            request.payment?.status === 'failed' ? 'failed' : 'pending',
+    date: request.payment?.date || request.createdAt,
+    method: request.payment?.method || 'card',
+    reference: request.payment?.transactionId || `REF-${request._id.toString().slice(-6)}`,
+    user: request.user ? `${request.user.firstName} ${request.user.lastName}` : 'Utilisateur inconnu'
+  }));
+  
+  // Recherche textuelle
+  if (search) {
+    const searchLower = search.toLowerCase();
+    payments = payments.filter(payment => 
+      payment.requestId.toLowerCase().includes(searchLower) ||
+      payment.reference.toLowerCase().includes(searchLower) ||
+      payment.user.toLowerCase().includes(searchLower)
+    );
+  }
+  
+  res.status(200).json({
+    success: true,
+    count: payments.length,
+    data: payments
+  });
+});
+
 // @desc    Obtenir tous les utilisateurs
 // @route   GET /api/admin/users
 // @access  Private/Admin
@@ -275,6 +328,12 @@ exports.updateUser = catchAsync(async (req, res, next) => {
 
   // Ne pas permettre de changer le mot de passe via cette route
   delete req.body.password;
+
+  // Mapper phoneNumber vers phone si présent
+  if (req.body.phoneNumber) {
+    req.body.phone = req.body.phoneNumber;
+    delete req.body.phoneNumber;
+  }
 
   const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
@@ -308,4 +367,29 @@ exports.deleteUser = catchAsync(async (req, res, next) => {
     success: true,
     data: {}
   });
-}); 
+});
+
+// @desc    Obtenir l'activité récente
+// @route   GET /api/admin/activity/recent
+// @access  Private/Admin
+exports.getRecentActivity = catchAsync(async (req, res) => {
+  const recentRequests = await Request.find()
+    .sort({ createdAt: -1 })
+    .limit(10)
+    .populate('user', 'firstName lastName')
+    .select('_id status createdAt documentType');
+
+  const activities = recentRequests.map(request => ({
+    id: request._id,
+    type: 'request',
+    description: `Nouvelle demande de ${request.documentType || 'document'}`,
+    status: request.status,
+    timestamp: request.createdAt,
+    user: request.user ? `${request.user.firstName} ${request.user.lastName}` : 'Utilisateur inconnu'
+  }));
+
+  res.status(200).json({
+    success: true,
+    data: activities
+  });
+});

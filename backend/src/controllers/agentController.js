@@ -12,23 +12,23 @@ exports.getStats = catchAsync(async (req, res) => {
   // Compter les demandes par statut pour l'agent
   const pendingRequests = await Request.countDocuments({ 
     agent: req.user.id,
-    status: 'en_attente'
+    status: 'pending'
   });
 
   const processingRequests = await Request.countDocuments({ 
     agent: req.user.id,
-    status: 'en_cours'
+    status: 'processing'
   });
 
   const completedToday = await Request.countDocuments({ 
     agent: req.user.id,
-    status: 'terminee',
+    status: 'completed',
     updatedAt: { $gte: today }
   });
 
   const rejectedToday = await Request.countDocuments({ 
     agent: req.user.id,
-    status: 'rejetee',
+    status: 'rejected',
     updatedAt: { $gte: today }
   });
 
@@ -39,7 +39,7 @@ exports.getStats = catchAsync(async (req, res) => {
   // Tendance des demandes en attente
   const newPendingRequests = await Request.countDocuments({
     agent: req.user.id,
-    status: 'en_attente',
+    status: 'pending',
     createdAt: { $gte: thirtyDaysAgo }
   });
   const pendingTrend = pendingRequests > 0 ? Math.round((newPendingRequests / pendingRequests) * 100) : 0;
@@ -47,7 +47,7 @@ exports.getStats = catchAsync(async (req, res) => {
   // Tendance des demandes en cours
   const newProcessingRequests = await Request.countDocuments({
     agent: req.user.id,
-    status: 'en_cours',
+    status: 'processing',
     createdAt: { $gte: thirtyDaysAgo }
   });
   const processingTrend = processingRequests > 0 ? Math.round((newProcessingRequests / processingRequests) * 100) : 0;
@@ -55,7 +55,7 @@ exports.getStats = catchAsync(async (req, res) => {
   // Tendance des demandes complétées
   const newCompletedRequests = await Request.countDocuments({
     agent: req.user.id,
-    status: 'terminee',
+    status: 'completed',
     updatedAt: { $gte: thirtyDaysAgo }
   });
   const completedTrend = completedToday > 0 ? Math.round((newCompletedRequests / completedToday) * 100) : 0;
@@ -63,7 +63,7 @@ exports.getStats = catchAsync(async (req, res) => {
   // Tendance des demandes rejetées
   const newRejectedRequests = await Request.countDocuments({
     agent: req.user.id,
-    status: 'rejetee',
+    status: 'rejected',
     updatedAt: { $gte: thirtyDaysAgo }
   });
   const rejectedTrend = rejectedToday > 0 ? Math.round((newRejectedRequests / rejectedToday) * 100) : 0;
@@ -92,7 +92,7 @@ exports.getPendingRequests = catchAsync(async (req, res) => {
   // Obtenir les demandes en attente
   const pendingRequests = await Request.find({ 
     agent: req.user.id,
-    status: 'en_attente'
+    status: 'pending'
   })
     .sort({ createdAt: -1 })
     .populate('user', 'firstName lastName')
@@ -113,13 +113,13 @@ exports.getPendingRequests = catchAsync(async (req, res) => {
 
   const overdueRequests = await Request.countDocuments({
     agent: req.user.id,
-    status: 'en_attente',
+    status: 'pending',
     createdAt: { $lte: fortyEightHoursAgo }
   });
 
   const urgentRequests = await Request.countDocuments({
     agent: req.user.id,
-    status: 'en_attente',
+    status: 'pending',
     isUrgent: true
   });
 

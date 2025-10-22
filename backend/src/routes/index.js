@@ -6,6 +6,8 @@ const notificationRoutes = require('./notificationRoutes');
 const adminRoutes = require('./adminRoutes');
 const citizenRoutes = require('./citizenRoutes');
 const agentRoutes = require('./agentRoutes');
+const documentTypeRoutes = require('./documentTypeRoutes');
+const publicDocumentTypeRoutes = require('./publicDocumentTypeRoutes');
 
 // Routes d'authentification
 router.use('/auth', authRoutes);
@@ -25,4 +27,10 @@ router.use('/citizen', citizenRoutes);
 // Routes d'agent
 router.use('/agent', agentRoutes);
 
-module.exports = router; 
+// Routes des types de documents (admin - protégées)
+router.use('/admin/document-types', documentTypeRoutes);
+
+// Routes publiques des types de documents (pour les citoyens)
+router.use('/document-types', publicDocumentTypeRoutes);
+
+module.exports = router;

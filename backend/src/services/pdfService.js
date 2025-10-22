@@ -2,6 +2,7 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const cloudinary = require('../config/cloudinary');
+const axios = require('axios');
 
 // Créer le dossier uploads s'il n'existe pas
 const uploadsDir = path.join(__dirname, '../../uploads');
@@ -24,145 +25,101 @@ const generateBirthCertificate = async (data) => {
 
       doc.pipe(stream);
 
-      // Couleurs
+      // Couleurs et repères
       const blueColor = '#1e40af';
       const blackColor = '#000000';
+      const pageWidth = doc.page.width;
+      const marginLeft = 40;
+      const marginRight = 40;
+      const contentWidth = pageWidth - marginLeft - marginRight;
 
-      // En-tête - District et Commune (côté gauche)
-      doc.fontSize(12)
-         .fillColor(blackColor)
-         .text('DISTRICT D\'ABIDJAN', 50, 50, { align: 'center' });
-      
-      // Ligne horizontale sous DISTRICT
-      doc.moveTo(50, 70)
-         .lineTo(200, 70)
-         .stroke(blackColor);
-      
-      doc.text('COMMUNE D\'ABOBO', 50, 80, { align: 'center' });
+      // En-tête
+      const leftHeaderX = marginLeft;
+      const leftHeaderWidth = 180;
+      const headerTopY = 50;
 
-      // République de Côte d'Ivoire (côté droit)
-      doc.text('REPUBLIQUE DE COTE D\'IVOIRE', 400, 50, { align: 'right' });
-      
-      // EXTRAIT (centré)
-      doc.fontSize(16)
-         .font('Helvetica-Bold')
-         .text('EXTRAIT', 0, 100, { align: 'center' });
-      
-      doc.fontSize(12)
-         .font('Helvetica')
-         .text('Du registre des actes de l\'Etat Civil', 0, 120, { align: 'center' });
-      
+      doc.fillColor(blackColor).fontSize(12);
+      doc.text('DISTRICT D\'ABIDJAN', leftHeaderX, headerTopY, { width: leftHeaderWidth, align: 'center' });
+      doc.moveTo(leftHeaderX, headerTopY + 20).lineTo(leftHeaderX + leftHeaderWidth, headerTopY + 20).stroke(blackColor);
+      doc.text('COMMUNE D\'ABOBO', leftHeaderX, headerTopY + 30, { width: leftHeaderWidth, align: 'center' });
+
+      // République (à droite)
+      doc.text('REPUBLIQUE DE COTE D\'IVOIRE', marginLeft, headerTopY, { width: contentWidth, align: 'right' });
+
+      // Titre centré
+      doc.font('Helvetica-Bold').fontSize(16).text('EXTRAIT', marginLeft, 100, { width: contentWidth, align: 'center' });
+      doc.font('Helvetica').fontSize(12).text('Du registre des actes de l\'Etat Civil', marginLeft, 120, { width: contentWidth, align: 'center' });
       const currentYear = new Date().getFullYear();
-      doc.text(`Pour l'année ${currentYear}`, 0, 140, { align: 'center' });
+      doc.text(`Pour l'année ${currentYear}`, marginLeft, 140, { width: contentWidth, align: 'center' });
 
-      // Emblème/Sceau (centré)
-      const centerX = 300;
+      // Emblème centré
+      const centerX = marginLeft + contentWidth / 2;
       const centerY = 180;
-      
-      // Cercle pour l'emblème
-      doc.circle(centerX, centerY, 30)
-         .stroke(blueColor);
-      
-      // Étoile au centre (simplifiée en cercle)
-      doc.circle(centerX, centerY, 8)
-         .fill(blueColor);
-      
-      // ETAT CIVIL
-      doc.fontSize(14)
-         .font('Helvetica-Bold')
-         .text('ETAT CIVIL', 0, 220, { align: 'center' });
-      
-      // Ligne horizontale
-      doc.moveTo(50, 240)
-         .lineTo(550, 240)
-         .stroke(blackColor);
-      
-      doc.text('Centre Principal', 0, 250, { align: 'center' });
+      doc.circle(centerX, centerY, 30).stroke(blueColor);
+      doc.circle(centerX, centerY, 8).fill(blueColor);
 
-      // Ligne de séparation
-      doc.moveTo(50, 280)
-         .lineTo(550, 280)
-         .stroke(blackColor);
+      // Bloc ETAT CIVIL centré
+      doc.font('Helvetica-Bold').fontSize(14).fillColor(blackColor).text('ETAT CIVIL', marginLeft, 220, { width: contentWidth, align: 'center' });
+      doc.moveTo(marginLeft, 240).lineTo(marginLeft + contentWidth, 240).stroke(blackColor);
+      doc.font('Helvetica').fontSize(12).text('Centre Principal', marginLeft, 250, { width: contentWidth, align: 'center' });
+      doc.moveTo(marginLeft, 280).lineTo(marginLeft + contentWidth, 280).stroke(blackColor);
 
-      // Corps principal
+      // Corps principal en deux colonnes
       const startY = 300;
-      
-      // Numéro du registre (côté gauche)
-      doc.fontSize(11)
-         .text(`N°${data.numeroRegistre || 'N°01'} DU ${new Date().toLocaleDateString('fr-FR')} DU REGISTRE`, 50, startY);
-      
-      doc.fontSize(12)
-         .font('Helvetica-Bold')
-         .text('NAISSANCE DE', 50, startY + 20);
-      
-      doc.fontSize(14)
-         .text(data.fullName.toUpperCase(), 50, startY + 40);
-      
-      doc.fontSize(12)
-         .text('KOFFI./', 50, startY + 60);
+      const leftColX = marginLeft;
+      const rightColX = marginLeft + Math.floor(contentWidth * 0.55);
+      const leftColWidth = Math.floor(contentWidth * 0.45) - 10;
+      const rightColWidth = contentWidth - (rightColX - marginLeft);
 
-      // Détails de naissance (côté droit)
+      // Colonne gauche
+      doc.fontSize(11).text(`N°${data.numeroRegistre} DU ${new Date().toLocaleDateString('fr-FR')} DU REGISTRE`, leftColX, startY, { width: leftColWidth });
+      doc.font('Helvetica-Bold').fontSize(12).text('NAISSANCE DE', leftColX, startY + 20, { width: leftColWidth });
+      doc.fontSize(14).text((data.fullName || '').toUpperCase(), leftColX, startY + 40, { width: leftColWidth });
+
+      // Colonne droite
       const birthDate = new Date(data.birthDate);
-      const dateStr = birthDate.toLocaleDateString('fr-FR', { 
-        year: 'numeric', 
-        month: 'long', 
-        day: 'numeric' 
-      });
-      
-      doc.fontSize(11)
-         .text(`Le ${dateStr} ./. `, 300, startY);
-      doc.text(`à onze heures cinquante huit minutes ./. `, 300, startY + 15);
-      doc.text(`est né ${data.fullName} ./. `, 300, startY + 30);
-      doc.text(`${data.birthPlace} ./. `, 300, startY + 45);
-      doc.text(`fils de ${data.fatherName} (Nat:Ivoirienne) KOFFI./. `, 300, startY + 60);
-      doc.text(`profession Conseiller d'Orientation ./. `, 300, startY + 75);
-      doc.text(`domicilié Yopougon./. `, 300, startY + 90);
-      doc.text(`et de ${data.motherName} ./. `, 300, startY + 105);
-      doc.text(`profession Sans ./. `, 300, startY + 120);
-      doc.text(`domiciliée Abobo./. `, 300, startY + 135);
+      const dateStr = birthDate.toLocaleDateString('fr-FR', { year: 'numeric', month: 'long', day: 'numeric' });
+      let y = startY;
+      doc.font('Helvetica').fontSize(11)
+        .text(`Le ${dateStr} ./. `, rightColX, y, { width: rightColWidth }); y += 15;
+      doc.text(`à onze heures cinquante huit minutes ./. `, rightColX, y, { width: rightColWidth }); y += 15;
+      doc.text(`est né ${data.fullName} ./. `, rightColX, y, { width: rightColWidth }); y += 15;
+      doc.text(`${data.birthPlace} ./. `, rightColX, y, { width: rightColWidth }); y += 15;
+      doc.text(`fils de ${data.fatherName} (Nat:Ivoirienne) ./. `, rightColX, y, { width: rightColWidth }); y += 15;
+      doc.text(`profession Conseiller d'Orientation ./. `, rightColX, y, { width: rightColWidth }); y += 15;
+      doc.text(`domicilié Yopougon ./. `, rightColX, y, { width: rightColWidth }); y += 15;
+      doc.text(`et de ${data.motherName} ./. `, rightColX, y, { width: rightColWidth }); y += 15;
+      doc.text(`profession Sans ./. `, rightColX, y, { width: rightColWidth }); y += 15;
+      doc.text(`domiciliée Abobo ./. `, rightColX, y, { width: rightColWidth });
 
       // Lignes doubles de séparation
-      doc.moveTo(50, startY + 160)
-         .lineTo(550, startY + 160)
-         .stroke(blackColor);
-      doc.moveTo(50, startY + 165)
-         .lineTo(550, startY + 165)
-         .stroke(blackColor);
+      const sepY = startY + 160;
+      doc.moveTo(marginLeft, sepY).lineTo(marginLeft + contentWidth, sepY).stroke(blackColor);
+      doc.moveTo(marginLeft, sepY + 5).lineTo(marginLeft + contentWidth, sepY + 5).stroke(blackColor);
 
       // Mentions
       const mentionsY = startY + 180;
-      doc.fontSize(12)
-         .font('Helvetica-Bold')
-         .text('MENTIONS (éventuellement)', 0, mentionsY, { align: 'center' });
-      
-      doc.fontSize(11)
-         .text('Marié le ............ Néant ............ à ............ Néant ............ ', 50, mentionsY + 20);
-      doc.text('avec Néant', 50, mentionsY + 35);
-      doc.text('Mariage dissous par décision de divorce en date du ............ Néant', 50, mentionsY + 50);
-      doc.text('Décédé le ............ Néant ............ à ............ Néant', 50, mentionsY + 65);
+      doc.font('Helvetica-Bold').fontSize(12).text('MENTIONS (éventuellement)', marginLeft, mentionsY, { width: contentWidth, align: 'center' });
+      doc.font('Helvetica').fontSize(11)
+        .text('Marié le ............ Néant ............ à ............ Néant ............ ', marginLeft, mentionsY + 20, { width: contentWidth })
+        .text('avec Néant', marginLeft, mentionsY + 35, { width: contentWidth })
+        .text('Mariage dissous par décision de divorce en date du ............ Néant', marginLeft, mentionsY + 50, { width: contentWidth })
+        .text('Décédé le ............ Néant ............ à ............ Néant', marginLeft, mentionsY + 65, { width: contentWidth });
 
       // Ligne de séparation
-      doc.moveTo(50, mentionsY + 90)
-         .lineTo(550, mentionsY + 90)
-         .stroke(blackColor);
+      doc.moveTo(marginLeft, mentionsY + 90).lineTo(marginLeft + contentWidth, mentionsY + 90).stroke(blackColor);
 
       // Pied de page
       const footerY = mentionsY + 110;
-      doc.text('Certifié le présent extrait conforme aux indications portées au registre', 50, footerY);
-      
-      // Date de délivrance (côté droit)
+      doc.font('Helvetica').fontSize(11).text('Certifié le présent extrait conforme aux indications portées au registre', marginLeft, footerY, { width: contentWidth });
       const deliveryDate = new Date().toLocaleDateString('fr-FR');
-      doc.text(`Délivré à ABOBO, le ${deliveryDate}`, 400, footerY);
-      doc.text('L\'Officier de l\'Etat civil,', 400, footerY + 20);
-      
-      // Ligne pour signature
-      doc.moveTo(400, footerY + 40)
-         .lineTo(500, footerY + 40)
-         .stroke(blackColor);
-      doc.text('(Signature)', 420, footerY + 45);
+      doc.text(`Délivré à ABOBO, le ${deliveryDate}`, marginLeft, footerY, { width: contentWidth, align: 'right' });
+      doc.text('L\'Officier de l\'Etat civil,', marginLeft, footerY + 20, { width: contentWidth, align: 'right' });
+      doc.moveTo(marginLeft + contentWidth - 160, footerY + 40).lineTo(marginLeft + contentWidth - 60, footerY + 40).stroke(blackColor);
+      doc.text('(Signature)', marginLeft + contentWidth - 140, footerY + 45);
 
       // Sceau (côté gauche)
-      const sealX = 100;
+      const sealX = marginLeft + 60;
       const sealY = footerY + 20;
       
       // Grand sceau circulaire
@@ -190,7 +147,7 @@ const generateBirthCertificate = async (data) => {
       const officerX = 400;
       const officerY = footerY + 60;
       
-      doc.rect(officerX, officerY, 120, 60)
+      doc.rect(officerX, officerY, 140, 60)
          .stroke(blueColor);
       
       doc.fontSize(10)
@@ -203,8 +160,7 @@ const generateBirthCertificate = async (data) => {
       doc.text('COMMUNE D\'ABOBO', officerX + 5, officerY + 50);
 
       // Code alphanumérique en bas
-      doc.fontSize(8)
-         .text('376314anabi01082022', 500, doc.page.height - 30);
+      doc.fontSize(8).text('376314anabi01082022', marginLeft + contentWidth - 120, doc.page.height - 30);
 
       doc.end();
 

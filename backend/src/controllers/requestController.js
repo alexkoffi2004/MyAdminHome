@@ -32,14 +32,31 @@ const getDocumentPrice = (documentType) => {
 // @access  Private (Citoyen)
 exports.createRequest = catchAsync(async (req, res) => {
   try {
-    // Vérifier si un fichier d'identité a été uploadé
-    let identityDocumentUrl = null;
-    if (req.file) {
-      identityDocumentUrl = req.file.path;
+    // Gérer les fichiers uploadés (req.files contient maintenant un objet avec les champs)
+    const documents = {};
+    if (req.files) {
+      if (req.files.birthCertificate) documents.birthCertificate = req.files.birthCertificate[0].path;
+      if (req.files.fatherIdCard) documents.fatherIdCard = req.files.fatherIdCard[0].path;
+      if (req.files.motherIdCard) documents.motherIdCard = req.files.motherIdCard[0].path;
+      if (req.files.familyBook) documents.familyBook = req.files.familyBook[0].path;
+      if (req.files.marriageCertificate) documents.marriageCertificate = req.files.marriageCertificate[0].path;
+      // Ancien champ pour compatibilité
+      if (req.files.identityDocument) documents.identityDocument = req.files.identityDocument[0].path;
+    }
+
+    // Récupérer le type de document pour obtenir le prix
+    const DocumentType = require('../models/DocumentType');
+    const documentType = await DocumentType.findById(req.body.documentType);
+    
+    if (!documentType) {
+      return res.status(404).json({
+        success: false,
+        message: 'Type de document non trouvé'
+      });
     }
 
     // Calculer le prix
-    const documentPrice = getDocumentPrice(req.body.documentType);
+    const documentPrice = documentType.price || 0;
     const deliveryFee = req.body.deliveryMethod === 'delivery' ? 2000 : 0;
     const totalPrice = documentPrice + deliveryFee;
 
@@ -59,15 +76,36 @@ exports.createRequest = catchAsync(async (req, res) => {
     const requestData = {
       documentType: req.body.documentType,
       commune: commune._id,
+      // Anciennes données (compatibilité)
       fullName: req.body.fullName,
       birthDate: req.body.birthDate,
       birthPlace: req.body.birthPlace,
       fatherName: req.body.fatherName,
       motherName: req.body.motherName,
+      // Nouvelles données - Enfant
+      childLastName: req.body.childLastName,
+      childFirstName: req.body.childFirstName,
+      childBirthDate: req.body.childBirthDate,
+      childBirthPlace: req.body.childBirthPlace,
+      childBirthTime: req.body.childBirthTime,
+      childMaternity: req.body.childMaternity,
+      childGender: req.body.childGender,
+      // Nouvelles données - Parents
+      fatherFullName: req.body.fatherFullName,
+      fatherNationality: req.body.fatherNationality,
+      fatherProfession: req.body.fatherProfession,
+      fatherAddress: req.body.fatherAddress,
+      motherFullName: req.body.motherFullName,
+      motherNationality: req.body.motherNationality,
+      motherProfession: req.body.motherProfession,
+      motherAddress: req.body.motherAddress,
+      // Autres
       deliveryMethod: req.body.deliveryMethod,
       address: req.body.address,
       phoneNumber: req.body.phoneNumber,
-      identityDocument: identityDocumentUrl,
+      // Documents
+      documents: documents,
+      identityDocument: documents.identityDocument, // Pour compatibilité
       status: 'pending',
       user: req.user.id,
       price: totalPrice,
@@ -223,7 +261,7 @@ exports.approveRequest = async (req, res) => {
 
     await demande.save();
 
-    // Générer le PDF d'extrait de naissance et récupérer le chemin de fichier
+    // Générer le PDF d'extrait de naissance (PDFKit) et récupérer le chemin de fichier
 const { filePath } = await generateBirthCertificate(demande);
 console.log("Chemin généré du PDF :", { filePath });
 
@@ -285,7 +323,8 @@ exports.getRequest = catchAsync(async (req, res) => {
     const request = await Request.findById(req.params.id)
       .populate('user', 'firstName lastName email')
       .populate('commune', 'name')
-      .populate('agent', 'firstName lastName');
+      .populate('agent', 'firstName lastName')
+      .populate('documentType', 'name price processingTime');
     
     console.log('Found request:', request);
 
@@ -318,16 +357,37 @@ exports.getRequest = catchAsync(async (req, res) => {
       // Prefer explicit documentUrl, otherwise fallback to generatedDocument.url when available
       documentUrl: request.documentUrl || (request.generatedDocument && request.generatedDocument.url) || undefined,
       details: {
+        // Anciennes données (compatibilité)
         fullName: request.fullName,
         birthDate: request.birthDate,
         birthPlace: request.birthPlace,
         fatherName: request.fatherName,
         motherName: request.motherName,
+        // Nouvelles données - Enfant
+        childLastName: request.childLastName,
+        childFirstName: request.childFirstName,
+        childBirthDate: request.childBirthDate,
+        childBirthPlace: request.childBirthPlace,
+        childBirthTime: request.childBirthTime,
+        childMaternity: request.childMaternity,
+        childGender: request.childGender,
+        // Nouvelles données - Parents
+        fatherFullName: request.fatherFullName,
+        fatherNationality: request.fatherNationality,
+        fatherProfession: request.fatherProfession,
+        fatherAddress: request.fatherAddress,
+        motherFullName: request.motherFullName,
+        motherNationality: request.motherNationality,
+        motherProfession: request.motherProfession,
+        motherAddress: request.motherAddress,
+        // Autres
         commune: request.commune.name,
         deliveryMethod: request.deliveryMethod,
         phoneNumber: request.phoneNumber,
         address: request.address
       },
+      // Documents uploadés
+      documents: request.documents || {},
       timeline: [
         {
           id: 1,
@@ -477,6 +537,7 @@ exports.getAgentRequests = catchAsync(async (req, res) => {
   const requests = await Request.find(query)
     .populate('user', 'firstName lastName email')
     .populate('commune', 'name')
+    .populate('documentType', 'name price')
     .sort('-createdAt');
 
   console.log('Nombre de demandes trouvées:', requests.length);
@@ -522,7 +583,8 @@ exports.updateRequestStatus = async (req, res) => {
 
     const request = await Request.findById(req.params.id)
       .populate('user', 'firstName lastName email')
-      .populate('commune', 'name');
+      .populate('commune', 'name')
+      .populate('documentType', 'name price');
 
     if (!request) {
       console.log('Demande non trouvée:', req.params.id);
@@ -560,6 +622,14 @@ exports.updateRequestStatus = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Le paiement doit être effectué avant d\'approuver la demande'
+      });
+    }
+
+    // Empêcher le rejet si le paiement a déjà été effectué
+    if (status === 'rejected' && (request.paymentStatus === 'completed' || request.paymentStatus === 'paid')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Impossible de rejeter une demande dont le paiement a déjà été effectué. Veuillez contacter l\'administrateur pour un remboursement.'
       });
     }
 
@@ -609,16 +679,27 @@ exports.updateRequestStatus = async (req, res) => {
 
     // Créer une notification pour l'utilisateur
     try {
-      const notificationMessage = status === 'completed' 
-        ? 'Votre demande a été approuvée. L\'agent va générer votre document.' 
-        : status === 'rejected' 
-          ? `Votre demande a été rejetée${note ? `: ${note}` : '.'}` 
-          : 'Le statut de votre demande a été mis à jour.';
+      let notificationMessage;
+      let notificationTitle;
+      
+      if (status === 'processing') {
+        notificationTitle = 'Demande approuvée pour paiement';
+        notificationMessage = 'Votre demande a été vérifiée et approuvée. Vous pouvez maintenant procéder au paiement pour finaliser votre demande.';
+      } else if (status === 'completed') {
+        notificationTitle = 'Demande approuvée';
+        notificationMessage = 'Votre demande a été approuvée. L\'agent va générer votre document.';
+      } else if (status === 'rejected') {
+        notificationTitle = 'Demande rejetée';
+        notificationMessage = `Votre demande a été rejetée${note ? `: ${note}` : '.'}`;
+      } else {
+        notificationTitle = 'Mise à jour de votre demande';
+        notificationMessage = 'Le statut de votre demande a été mis à jour.';
+      }
 
       await notificationService.createNotification({
         user: request.user._id,
         type: notificationService.NOTIFICATION_TYPES.REQUEST_STATUS_UPDATED,
-        title: 'Mise à jour de votre demande',
+        title: notificationTitle,
         message: notificationMessage,
         request: request._id
       });
@@ -665,6 +746,7 @@ exports.getAllRequests = async (req, res) => {
     const requests = await Request.find(query)
       .sort('-createdAt')
       .populate('user', 'firstName lastName email')
+      .populate('documentType', 'name price')
       .populate('payment', 'status amount')
       .populate('assignedTo', 'firstName lastName')
       .limit(limit * 1)
@@ -699,9 +781,9 @@ exports.getStatistics = catchAsync(async (req, res) => {
 
     // Calculer les statistiques
     const totalRequests = requests.length;
-    const pendingRequests = requests.filter(r => r.status === 'en_attente').length;
-    const completedRequests = requests.filter(r => r.status === 'terminee').length;
-    const rejectedRequests = requests.filter(r => r.status === 'rejetee').length;
+    const pendingRequests = requests.filter(r => r.status === 'pending').length;
+    const completedRequests = requests.filter(r => r.status === 'completed').length;
+    const rejectedRequests = requests.filter(r => r.status === 'rejected').length;
 
     console.log('Calculated statistics:', {
       totalRequests,
@@ -889,7 +971,8 @@ exports.updatePaymentStatus = catchAsync(async (req, res) => {
 exports.generateDocument = catchAsync(async (req, res) => {
   const request = await Request.findById(req.params.id)
     .populate('user', 'firstName lastName email')
-    .populate('commune', 'name');
+    .populate('commune', 'name')
+    .populate('documentType', 'name price');
 
   if (!request) {
     return res.status(404).json({

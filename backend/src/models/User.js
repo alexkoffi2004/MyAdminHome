@@ -74,7 +74,18 @@ const UserSchema = new mongoose.Schema({
   resetPasswordToken: String,
   resetPasswordExpire: Date
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Virtual pour compatibilité avec phoneNumber
+UserSchema.virtual('phoneNumber').get(function() {
+  return this.phone;
+});
+
+UserSchema.virtual('phoneNumber').set(function(value) {
+  this.phone = value;
 });
 
 // Encrypter le mot de passe avant de sauvegarder

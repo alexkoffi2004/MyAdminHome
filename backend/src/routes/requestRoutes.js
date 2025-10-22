@@ -27,7 +27,15 @@ router.use(protect);
 router.get('/statistics', isCitizen, getStatistics);
 
 // Routes pour les citoyens
-router.post('/', isCitizen, upload.single('identityDocument'), handleUploadError, createRequest);
+router.post('/', isCitizen, upload.fields([
+  { name: 'birthCertificate', maxCount: 1 },
+  { name: 'fatherIdCard', maxCount: 1 },
+  { name: 'motherIdCard', maxCount: 1 },
+  { name: 'familyBook', maxCount: 1 },
+  { name: 'marriageCertificate', maxCount: 1 },
+  // Ancien champ pour compatibilité
+  { name: 'identityDocument', maxCount: 1 }
+]), handleUploadError, createRequest);
 router.get('/', isCitizen, getRequests);
 router.get('/:id', getRequest);
 router.put('/:id', isCitizen, updateRequest);

@@ -5,28 +5,54 @@ const { catchAsync } = require('../utils/errorHandler');
 // @route   GET /api/citizen/statistics
 // @access  Private (Citoyen)
 exports.getStats = catchAsync(async (req, res) => {
+  console.log('🔍 getStats appelé pour l\'utilisateur:', req.user.id);
+  
   // Compter les demandes par statut pour le citoyen
   const totalRequests = await Request.countDocuments({ user: req.user.id });
-  const pendingRequests = await Request.countDocuments({ user: req.user.id, status: 'en_attente' });
-  const processingRequests = await Request.countDocuments({ user: req.user.id, status: 'en_cours' });
-  const completedRequests = await Request.countDocuments({ user: req.user.id, status: 'terminee' });
-  const rejectedRequests = await Request.countDocuments({ user: req.user.id, status: 'rejetee' });
+  const pendingRequests = await Request.countDocuments({ user: req.user.id, status: 'pending' });
+  const processingRequests = await Request.countDocuments({ user: req.user.id, status: 'processing' });
+  const completedRequests = await Request.countDocuments({ user: req.user.id, status: 'completed' });
+  const rejectedRequests = await Request.countDocuments({ user: req.user.id, status: 'rejected' });
+  
+  console.log('📊 Statistiques des demandes:', {
+    totalRequests,
+    pendingRequests,
+    processingRequests,
+    completedRequests,
+    rejectedRequests
+  });
+  
+  // Vérifier les données brutes des demandes
+  const sampleRequests = await Request.find({ user: req.user.id }).limit(3);
+  console.log('🔍 Échantillon des demandes:', sampleRequests.map(req => ({
+    id: req._id,
+    price: req.price,
+    status: req.status,
+    paymentStatus: req.paymentStatus,
+    payment: req.payment
+  })));
 
   // Calculer les statistiques de paiement
   const totalPayments = await Request.aggregate([
     { $match: { user: req.user.id } },
-    { $group: { _id: null, total: { $sum: '$price' } } }
+    { $group: { _id: null, total: { $sum: { $ifNull: ['$price', 0] } } } }
   ]);
 
   const pendingPayments = await Request.aggregate([
-    { $match: { user: req.user.id, status: { $in: ['en_attente', 'en_cours'] } } },
-    { $group: { _id: null, total: { $sum: '$price' } } }
+    { $match: { user: req.user.id, $or: [{ paymentStatus: 'pending' }, { 'payment.status': 'pending' }] } },
+    { $group: { _id: null, total: { $sum: { $ifNull: ['$price', 0] } } } }
   ]);
 
   const completedPayments = await Request.aggregate([
-    { $match: { user: req.user.id, status: 'terminee' } },
-    { $group: { _id: null, total: { $sum: '$price' } } }
+    { $match: { user: req.user.id, $or: [{ paymentStatus: 'completed' }, { 'payment.status': 'paid' }] } },
+    { $group: { _id: null, total: { $sum: { $ifNull: ['$price', 0] } } } }
   ]);
+  
+  console.log('💳 Résultats des agrégations de paiement:', {
+    totalPayments: totalPayments[0]?.total || 0,
+    pendingPayments: pendingPayments[0]?.total || 0,
+    completedPayments: completedPayments[0]?.total || 0
+  });
 
   // Calculer les tendances (pourcentage de variation sur 30 jours)
   const thirtyDaysAgo = new Date();
@@ -42,27 +68,31 @@ exports.getStats = catchAsync(async (req, res) => {
   // Tendance des demandes complétées
   const newCompletedRequests = await Request.countDocuments({
     user: req.user.id,
-    status: 'terminee',
+    status: 'completed',
     updatedAt: { $gte: thirtyDaysAgo }
   });
   const completedTrend = completedRequests > 0 ? Math.round((newCompletedRequests / completedRequests) * 100) : 0;
 
+  const responseData = {
+    totalRequests,
+    pendingRequests,
+    processingRequests,
+    completedRequests,
+    rejectedRequests,
+    totalPayments: totalPayments[0]?.total || 0,
+    pendingPayments: pendingPayments[0]?.total || 0,
+    completedPayments: completedPayments[0]?.total || 0,
+    trends: {
+      requests: { value: requestTrend, isPositive: requestTrend >= 0 },
+      completed: { value: completedTrend, isPositive: completedTrend >= 0 }
+    }
+  };
+  
+  console.log('📤 Données envoyées au frontend:', responseData);
+  
   res.status(200).json({
     success: true,
-    data: {
-      totalRequests,
-      pendingRequests,
-      processingRequests,
-      completedRequests,
-      rejectedRequests,
-      totalPayments: totalPayments[0]?.total || 0,
-      pendingPayments: pendingPayments[0]?.total || 0,
-      completedPayments: completedPayments[0]?.total || 0,
-      trends: {
-        requests: { value: requestTrend, isPositive: requestTrend >= 0 },
-        completed: { value: completedTrend, isPositive: completedTrend >= 0 }
-      }
-    }
+    data: responseData
   });
 });
 
@@ -72,7 +102,7 @@ exports.getStats = catchAsync(async (req, res) => {
 exports.getRecentPayments = catchAsync(async (req, res) => {
   const recentRequests = await Request.find({ 
     user: req.user.id,
-    status: 'terminee'
+    status: 'completed'
   })
     .sort({ updatedAt: -1 })
     .limit(5);
